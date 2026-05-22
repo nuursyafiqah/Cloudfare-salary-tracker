@@ -21,7 +21,8 @@ export default function SummaryCards({ cycle, fixedTotal, expenseTotal }) {
   const totalSpent = fixedTotal + expenseTotal;
   const remaining = salary - totalSpent;
   const startDate = cycle?.start_date ? parseDateOnly(cycle.start_date) : null;
-  const daysSince = startDate ? Math.max(1, Math.floor((new Date() - startDate) / 86400000)) : 0;
+  const endDate = cycle?.end_date ? parseDateOnly(cycle.end_date) : new Date();
+  const daysSince = startDate && endDate ? Math.max(1, Math.floor((endDate - startDate) / 86400000) + 1) : 0;
   const avgPerDay = daysSince > 0 ? (expenseTotal / daysSince) : 0;
 
   const fmt = (n) => `⃁ ${n.toLocaleString("en-MY", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;

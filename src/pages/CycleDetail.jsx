@@ -2,7 +2,8 @@ import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { base44 } from "@/api/base44Client";
 import { Badge } from "@/components/ui/badge";
-import { ArrowLeft } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { ArrowLeft, Plus, ReceiptText, PiggyBank } from "lucide-react";
 import MobileLayout from "../components/MobileLayout";
 import SummaryCards from "../components/SummaryCards";
 import { filterExpensesForCycle, formatDisplayDate } from "@/utils/cycleFilters";
@@ -50,7 +51,25 @@ export default function CycleDetail() {
           <Badge variant={cycle.status === "active" ? "default" : "secondary"}>{cycle.status}</Badge>
         </div>
 
+        {cycle.status !== "active" && (
+          <div className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs font-medium text-amber-700">
+            This is a closed salary cycle. You can still add, edit or delete expenses for this selected cycle.
+          </div>
+        )}
+
         <SummaryCards cycle={cycle} fixedTotal={fixedTotal} expenseTotal={expenseTotal} />
+
+        <div className="grid grid-cols-2 gap-3">
+          <Button className="h-12 rounded-xl gap-2" onClick={() => navigate(`/expenses?cycleId=${cycle.id}&add=1`)}>
+            <Plus className="w-4 h-4" /> Add Expense
+          </Button>
+          <Button variant="outline" className="h-12 rounded-xl gap-2" onClick={() => navigate(`/expenses?cycleId=${cycle.id}`)}>
+            <ReceiptText className="w-4 h-4" /> Expenses
+          </Button>
+          <Button variant="outline" className="col-span-2 h-12 rounded-xl gap-2" onClick={() => navigate(`/fixed?cycleId=${cycle.id}`)}>
+            <PiggyBank className="w-4 h-4" /> Fixed Spending for This Cycle
+          </Button>
+        </div>
 
         {/* Fixed spending */}
         <div>

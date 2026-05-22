@@ -4,6 +4,8 @@ import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Plus, Pencil, Trash2, Repeat } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { formatDisplayDate } from "@/utils/cycleFilters";
 import MobileLayout from "../components/MobileLayout";
 import FixedSpendingForm from "../components/FixedSpendingForm";
 
@@ -17,22 +19,35 @@ export default function FixedSpending() {
   const [deleteId, setDeleteId] = useState(null);
 
   const params = new URLSearchParams(window.location.search);
+  const selectedCycleId = params.get("cycleId");
 
   useEffect(() => { load(); }, []);
 
   useEffect(() => {
     if (params.get("add") === "1" && cycle) {
       setSheetOpen(true);
-      window.history.replaceState({}, "", "/fixed");
+      window.history.replaceState({}, "", selectedCycleId ? `/fixed?cycleId=${selectedCycleId}` : "/fixed");
     }
-  }, [cycle]);
+  }, [cycle, selectedCycleId]);
 
   const load = async () => {
-    const cycles = await base44.entities.SalaryCycle.filter({ status: "active" }, "-created_date", 1);
-    if (cycles.length > 0) {
-      setCycle(cycles[0]);
-      const f = await base44.entities.FixedSpending.filter({ salary_cycle_id: cycles[0].id });
+    setLoading(true);
+    let selectedCycle = null;
+
+    if (selectedCycleId) {
+      selectedCycle = await base44.entities.SalaryCycle.get(selectedCycleId);
+    } else {
+      const cycles = await base44.entities.SalaryCycle.filter({ status: "active" }, "-created_date", 1);
+      selectedCycle = cycles[0] || null;
+    }
+
+    if (selectedCycle) {
+      setCycle(selectedCycle);
+      const f = await base44.entities.FixedSpending.filter({ salary_cycle_id: selectedCycle.id });
       setItems(f);
+    } else {
+      setCycle(null);
+      setItems([]);
     }
     setLoading(false);
   };
@@ -62,7 +77,14 @@ export default function FixedSpending() {
     <MobileLayout>
       <div className="space-y-4 pb-4">
         <div className="flex items-center justify-between">
-          <h1 className="text-xl font-bold">Fixed Spending</h1>
+          <div>
+            <h1 className="text-xl font-bold">Fixed Spending</h1>
+            {cycle && (
+              <p className="text-xs text-muted-foreground mt-0.5">
+                {formatDisplayDate(cycle.start_date)} — {formatDisplayDate(cycle.end_date)}
+              </p>
+            )}
+          </div>
           {cycle && (
             <Button size="sm" className="rounded-xl gap-1" onClick={() => { setEditing(null); setSheetOpen(true); }}>
               <Plus className="w-4 h-4" /> Add
@@ -72,13 +94,16 @@ export default function FixedSpending() {
 
         {cycle && (
           <div className="bg-amber-50 rounded-xl p-3 border border-amber-200">
-            <p className="text-sm font-semibold text-amber-800">Total Fixed: ⃁ {total.toFixed(2)}</p>
-            <p className="text-xs text-amber-600 mt-0.5">These are your monthly commitments for this salary cycle.</p>
+            <div className="flex items-center justify-between gap-2">
+              <p className="text-sm font-semibold text-amber-800">Total Fixed: ⃁ {total.toFixed(2)}</p>
+              {cycle.status !== "active" && <Badge variant="secondary" className="bg-amber-100 text-amber-700 hover:bg-amber-100">Closed</Badge>}
+            </div>
+            <p className="text-xs text-amber-600 mt-0.5">These are your commitments for this selected salary cycle.</p>
           </div>
         )}
 
         {!cycle && !loading && (
-          <p className="text-sm text-muted-foreground text-center py-12">No active salary cycle. Create one first from the Dashboard.</p>
+          <p className="text-sm text-muted-foreground text-center py-12">No salary cycle selected. Create one first from the Dashboard or open one from Salary Cycles.</p>
         )}
 
         {loading ? (

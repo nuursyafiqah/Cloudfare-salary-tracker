@@ -1,7 +1,8 @@
 import { useMemo, useState, useEffect } from "react";
 import { base44 } from "@/api/base44Client";
-import { filterExpensesForCycle, isDateInSalaryCycle } from "@/utils/cycleFilters";
+import { filterExpensesForCycle, formatDisplayDate, isDateInSalaryCycle } from "@/utils/cycleFilters";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import {
@@ -275,6 +276,7 @@ export default function Expenses() {
   const [activeView, setActiveView] = useState("overview");
 
   const params = new URLSearchParams(window.location.search);
+  const selectedCycleId = params.get("cycleId");
 
   useEffect(() => {
     load();
@@ -283,17 +285,28 @@ export default function Expenses() {
   useEffect(() => {
     if (params.get("add") === "1" && cycle) {
       setSheetOpen(true);
-      window.history.replaceState({}, "", "/expenses");
+      window.history.replaceState({}, "", selectedCycleId ? `/expenses?cycleId=${selectedCycleId}` : "/expenses");
     }
-  }, [cycle]);
+  }, [cycle, selectedCycleId]);
 
   const load = async () => {
-    const cycles = await base44.entities.SalaryCycle.filter({ status: "active" }, "-start_date", 1);
-    if (cycles.length > 0) {
-      const activeCycle = cycles[0];
-      setCycle(activeCycle);
-      const e = await base44.entities.Expense.filter({ salary_cycle_id: activeCycle.id }, "-date");
-      setExpenses(filterExpensesForCycle(e, activeCycle));
+    setLoading(true);
+    let selectedCycle = null;
+
+    if (selectedCycleId) {
+      selectedCycle = await base44.entities.SalaryCycle.get(selectedCycleId);
+    } else {
+      const cycles = await base44.entities.SalaryCycle.filter({ status: "active" }, "-start_date", 1);
+      selectedCycle = cycles[0] || null;
+    }
+
+    if (selectedCycle) {
+      setCycle(selectedCycle);
+      const e = await base44.entities.Expense.filter({ salary_cycle_id: selectedCycle.id }, "-date");
+      setExpenses(filterExpensesForCycle(e, selectedCycle));
+    } else {
+      setCycle(null);
+      setExpenses([]);
     }
     setLoading(false);
   };
@@ -302,7 +315,7 @@ export default function Expenses() {
     if (!isDateInSalaryCycle(data.date, cycle)) {
       const start = cycle?.start_date || "the cycle start date";
       const end = cycle?.end_date || "the next salary cycle";
-      alert(`Expense date must be within the current salary cycle (${start} to ${end}).`);
+      alert(`Expense date must be within the selected salary cycle (${start} to ${end}).`);
       return;
     }
 
@@ -382,7 +395,14 @@ export default function Expenses() {
           <div className="flex items-center justify-between gap-3">
             <div>
               <h1 className="text-2xl font-extrabold tracking-tight text-slate-950">Daily Expenses</h1>
-              <p className="text-xs font-medium text-slate-500">Overview for current salary cycle</p>
+              <p className="text-xs font-medium text-slate-500">
+                {cycle ? `${formatDisplayDate(cycle.start_date)} — ${formatDisplayDate(cycle.end_date)}` : "Overview for salary cycle"}
+              </p>
+              {cycle && cycle.status !== "active" && (
+                <Badge variant="secondary" className="mt-2 rounded-full bg-amber-100 px-2.5 py-1 text-[10px] font-extrabold text-amber-700 hover:bg-amber-100">
+                  Editing Closed Cycle
+                </Badge>
+              )}
             </div>
             {cycle && (
               <Button className="h-11 rounded-2xl bg-emerald-500 px-4 font-bold text-white shadow-md shadow-emerald-500/20 hover:bg-emerald-600" onClick={openAddSheet}>
@@ -393,8 +413,14 @@ export default function Expenses() {
 
           {!cycle && !loading && (
             <p className="rounded-[1.5rem] bg-white p-5 text-center text-sm font-medium text-slate-500 shadow-sm ring-1 ring-slate-200/70">
-              No active salary cycle. Create one first from the Dashboard.
+              No salary cycle selected. Create one first from the Dashboard or open one from Salary Cycles.
             </p>
+          )}
+
+          {cycle && cycle.status !== "active" && (
+            <div className="rounded-[1.35rem] border border-amber-200 bg-amber-50 p-3 text-xs font-medium text-amber-700">
+              You are editing a closed/previous salary cycle. New expenses will be saved only inside this selected cycle.
+            </div>
           )}
 
           {loading ? (

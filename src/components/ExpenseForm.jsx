@@ -8,9 +8,19 @@ import { Textarea } from "@/components/ui/textarea";
 const categories = ["Food", "Groceries", "Transport", "Kids", "Bills", "Shopping", "Emergency", "Healthcare", "Entertainment", "Hungerstation", "Naim", "OCC order Makan", "Wife Req.", "Wife Req. brg Anak", "Other"];
 const paymentMethods = ["Cash", "Card", "Online Transfer", "E-Wallet", "Other"];
 
+function getDefaultExpenseDate(cycle) {
+  const today = new Date().toISOString().split("T")[0];
+
+  if (!cycle?.start_date) return today;
+  if (today < cycle.start_date) return cycle.start_date;
+  if (cycle.end_date && today > cycle.end_date) return cycle.end_date;
+
+  return today;
+}
+
 export default function ExpenseForm({ onSubmit, initial, loading, cycle }) {
   const [form, setForm] = useState({
-    date: initial?.date || new Date().toISOString().split("T")[0],
+    date: initial?.date || getDefaultExpenseDate(cycle),
     amount: initial?.amount || "",
     category: initial?.category || "",
     description: initial?.description || "",
@@ -28,7 +38,7 @@ export default function ExpenseForm({ onSubmit, initial, loading, cycle }) {
         <Input type="date" value={form.date} min={minDate} max={maxDate} onChange={(e) => set("date", e.target.value)} className="mt-1 h-12 text-base" />
         {cycle?.start_date && (
           <p className="mt-1 text-xs text-muted-foreground">
-            Only expenses from {cycle.start_date}{cycle.end_date ? ` to ${cycle.end_date}` : " onwards"} are counted in this cycle.
+            This expense will be saved under {cycle.start_date}{cycle.end_date ? ` to ${cycle.end_date}` : " onwards"} salary cycle.
           </p>
         )}
       </div>

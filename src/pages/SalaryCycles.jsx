@@ -1,14 +1,14 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { base44 } from "@/api/base44Client";
-import { filterExpensesForCycle, formatDisplayDate } from "@/utils/cycleFilters";
+import { filterExpensesForCycle, formatDisplayDate, getPreviousDate, toDateOnly } from "@/utils/cycleFilters";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
-import { Plus, Info, Trash2 } from "lucide-react";
+import { Plus, Info, Trash2, ChevronRight } from "lucide-react";
 import MobileLayout from "../components/MobileLayout";
 
 export default function SalaryCycles() {
@@ -33,8 +33,43 @@ export default function SalaryCycles() {
     }
   }, []);
 
+  const normalizeCycleBoundaries = async (rawCycles = []) => {
+    const sortedAsc = [...rawCycles]
+      .filter((cycle) => cycle.start_date)
+      .sort((a, b) => toDateOnly(a.start_date).localeCompare(toDateOnly(b.start_date)));
+
+    const updatesById = new Map();
+
+    sortedAsc.forEach((cycle, index) => {
+      const nextCycle = sortedAsc[index + 1];
+      const expectedStatus = nextCycle ? "closed" : "active";
+      const expectedEndDate = nextCycle ? getPreviousDate(nextCycle.start_date) : "";
+      const currentEndDate = toDateOnly(cycle.end_date);
+      const update = {};
+
+      if (cycle.status !== expectedStatus) update.status = expectedStatus;
+      if (currentEndDate !== expectedEndDate) update.end_date = expectedEndDate;
+
+      if (Object.keys(update).length > 0) {
+        updatesById.set(cycle.id, update);
+      }
+    });
+
+    if (updatesById.size > 0) {
+      await Promise.all(
+        Array.from(updatesById.entries()).map(([id, update]) => base44.entities.SalaryCycle.update(id, update))
+      );
+    }
+
+    return rawCycles
+      .map((cycle) => ({ ...cycle, ...(updatesById.get(cycle.id) || {}) }))
+      .sort((a, b) => toDateOnly(b.start_date).localeCompare(toDateOnly(a.start_date)));
+  };
+
   const load = async () => {
-    const c = await base44.entities.SalaryCycle.list("-start_date", 50);
+    setLoading(true);
+    const rawCycles = await base44.entities.SalaryCycle.list("-start_date", 50);
+    const c = await normalizeCycleBoundaries(rawCycles);
     setCycles(c);
 
     // Load totals for each cycle
@@ -55,50 +90,74 @@ export default function SalaryCycles() {
   };
 
   const handleCreate = async () => {
-    setSaving(true);
-    const newStartDate = form.start_date;
+    const newStartDate = toDateOnly(form.start_date);
     const salaryAmount = parseFloat(form.salary_amount);
 
-    // Close previous active cycle
-    const activeCycles = cycles.filter((c) => c.status === "active");
-    for (const ac of activeCycles) {
-      const endDate = new Date(newStartDate);
-      endDate.setDate(endDate.getDate() - 1);
-      await base44.entities.SalaryCycle.update(ac.id, {
-        status: "closed",
-        end_date: endDate.toISOString().split("T")[0],
-      });
+    if (cycles.some((cycle) => toDateOnly(cycle.start_date) === newStartDate)) {
+      alert("A salary cycle with this start date already exists. Open that cycle to edit it.");
+      return;
     }
 
-    // Create new cycle
-    const newCycle = await base44.entities.SalaryCycle.create({
-      start_date: newStartDate,
-      salary_amount: salaryAmount,
-      status: "active",
-    });
+    setSaving(true);
+    try {
+      const sortedAsc = [...cycles]
+        .filter((cycle) => cycle.start_date)
+        .sort((a, b) => toDateOnly(a.start_date).localeCompare(toDateOnly(b.start_date)));
+      const previousCycle = [...sortedAsc].reverse().find((cycle) => toDateOnly(cycle.start_date) < newStartDate);
+      const nextCycle = sortedAsc.find((cycle) => toDateOnly(cycle.start_date) > newStartDate);
+      const isLatestCycle = !nextCycle;
+      const newEndDate = nextCycle ? getPreviousDate(nextCycle.start_date) : "";
 
-    // Copy repeated fixed spending from previous active cycle
-    if (activeCycles.length > 0) {
-      const prevFixed = await base44.entities.FixedSpending.filter({ salary_cycle_id: activeCycles[0].id });
-      const repeated = prevFixed.filter((f) => f.repeat_every_cycle);
-      if (repeated.length > 0) {
-        await base44.entities.FixedSpending.bulkCreate(
-          repeated.map((f) => ({
-            salary_cycle_id: newCycle.id,
-            name: f.name,
-            amount: f.amount,
-            category: f.category,
-            repeat_every_cycle: true,
-            note: f.note,
-          }))
+      // If this is a backfilled/previous cycle, do not make it active.
+      // Only the latest salary cycle should be active.
+      const newCycle = await base44.entities.SalaryCycle.create({
+        start_date: newStartDate,
+        end_date: newEndDate,
+        salary_amount: salaryAmount,
+        status: isLatestCycle ? "active" : "closed",
+      });
+
+      // Close or resize the cycle immediately before the new start date.
+      // Example: existing active 27 Apr, new salary 20 May => 27 Apr ends 19 May.
+      if (previousCycle) {
+        await base44.entities.SalaryCycle.update(previousCycle.id, {
+          status: "closed",
+          end_date: getPreviousDate(newStartDate),
+        });
+      }
+
+      // Safety: if a new latest cycle was created, close any older active cycles.
+      if (isLatestCycle) {
+        const olderActiveCycles = cycles.filter((cycle) => cycle.status === "active" && cycle.id !== newCycle.id);
+        await Promise.all(
+          olderActiveCycles.map((cycle) => base44.entities.SalaryCycle.update(cycle.id, { status: "closed" }))
         );
       }
-    }
 
-    setSheetOpen(false);
-    setForm({ start_date: new Date().toISOString().split("T")[0], salary_amount: "" });
-    setSaving(false);
-    await load();
+      // Copy repeated fixed spending only when creating the next/latest cycle.
+      if (isLatestCycle && previousCycle) {
+        const prevFixed = await base44.entities.FixedSpending.filter({ salary_cycle_id: previousCycle.id });
+        const repeated = prevFixed.filter((f) => f.repeat_every_cycle);
+        if (repeated.length > 0) {
+          await base44.entities.FixedSpending.bulkCreate(
+            repeated.map((f) => ({
+              salary_cycle_id: newCycle.id,
+              name: f.name,
+              amount: f.amount,
+              category: f.category,
+              repeat_every_cycle: true,
+              note: f.note,
+            }))
+          );
+        }
+      }
+
+      setSheetOpen(false);
+      setForm({ start_date: new Date().toISOString().split("T")[0], salary_amount: "" });
+      await load();
+    } finally {
+      setSaving(false);
+    }
   };
 
 
@@ -141,7 +200,7 @@ export default function SalaryCycles() {
         <div className="bg-primary/5 rounded-xl p-3 flex items-start gap-2">
           <Info className="w-4 h-4 text-primary mt-0.5 shrink-0" />
           <p className="text-xs text-muted-foreground">
-            This tracker follows your salary date, not calendar month. Each cycle starts when you receive salary.
+            This tracker follows your salary date, not calendar month. Tap any cycle to open and edit its expenses. Only the latest cycle stays Active.
           </p>
         </div>
 
@@ -197,9 +256,14 @@ export default function SalaryCycles() {
                       style={{ width: `${Math.min(100, (totalSpent / c.salary_amount) * 100)}%` }}
                     />
                   </div>
-                  <p className={`text-xs font-medium ${remaining >= 0 ? "text-emerald-600" : "text-red-600"}`}>
-                    Remaining: {fmtCurrency(remaining)}
-                  </p>
+                  <div className="flex items-center justify-between gap-2">
+                    <p className={`text-xs font-medium ${remaining >= 0 ? "text-emerald-600" : "text-red-600"}`}>
+                      Remaining: {fmtCurrency(remaining)}
+                    </p>
+                    <span className="inline-flex items-center gap-1 rounded-full bg-muted px-2.5 py-1 text-[10px] font-semibold text-muted-foreground">
+                      Open Cycle <ChevronRight className="h-3 w-3" />
+                    </span>
+                  </div>
                 </div>
               );
             })}
@@ -213,7 +277,7 @@ export default function SalaryCycles() {
           <div className="mt-4 space-y-4 pb-6">
             <div className="bg-blue-50 rounded-xl p-3 border border-blue-200">
               <p className="text-xs text-blue-700">
-                Your spending cycle starts from your salary received date. If you do not know the next salary date yet, leave the end date empty. This cycle will stay active until you create the next salary cycle.
+                Your spending cycle starts from your salary received date. If you create an older/backfill cycle, it will stay Closed and can still be edited. Only the latest cycle will be Active.
               </p>
             </div>
             <div>
