@@ -1,4 +1,5 @@
 import { Wallet, CreditCard, TrendingDown, PiggyBank, Calendar, Activity } from "lucide-react";
+import { parseDateOnly } from "@/utils/cycleFilters";
 
 function Card({ icon: Icon, label, value, color, sub }) {
   return (
@@ -19,7 +20,7 @@ export default function SummaryCards({ cycle, fixedTotal, expenseTotal }) {
   const salary = cycle?.salary_amount || 0;
   const totalSpent = fixedTotal + expenseTotal;
   const remaining = salary - totalSpent;
-  const startDate = cycle?.start_date ? new Date(cycle.start_date) : null;
+  const startDate = cycle?.start_date ? parseDateOnly(cycle.start_date) : null;
   const daysSince = startDate ? Math.max(1, Math.floor((new Date() - startDate) / 86400000)) : 0;
   const avgPerDay = daysSince > 0 ? (expenseTotal / daysSince) : 0;
 

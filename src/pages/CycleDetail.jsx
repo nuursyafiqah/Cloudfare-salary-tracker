@@ -5,6 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { ArrowLeft } from "lucide-react";
 import MobileLayout from "../components/MobileLayout";
 import SummaryCards from "../components/SummaryCards";
+import { filterExpensesForCycle, formatDisplayDate } from "@/utils/cycleFilters";
 
 export default function CycleDetail() {
   const { cycleId } = useParams();
@@ -23,14 +24,14 @@ export default function CycleDetail() {
         base44.entities.Expense.filter({ salary_cycle_id: cycleId }, "-date"),
       ]);
       setFixed(f);
-      setExpenses(e);
+      setExpenses(filterExpensesForCycle(e, c));
       setLoading(false);
     })();
   }, [cycleId]);
 
   const fixedTotal = fixed.reduce((s, i) => s + (i.amount || 0), 0);
   const expenseTotal = expenses.reduce((s, i) => s + (i.amount || 0), 0);
-  const fmt = (d) => d ? new Date(d).toLocaleDateString("en-MY", { day: "numeric", month: "short", year: "numeric" }) : "—";
+  const fmt = formatDisplayDate;
 
   if (loading) {
     return <MobileLayout><div className="flex justify-center py-20"><div className="w-6 h-6 border-2 border-primary border-t-transparent rounded-full animate-spin" /></div></MobileLayout>;

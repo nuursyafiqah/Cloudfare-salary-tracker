@@ -8,7 +8,7 @@ import { Textarea } from "@/components/ui/textarea";
 const categories = ["Food", "Groceries", "Transport", "Kids", "Bills", "Shopping", "Emergency", "Healthcare", "Entertainment", "Hungerstation", "Naim", "OCC order Makan", "Wife Req.", "Wife Req. brg Anak", "Other"];
 const paymentMethods = ["Cash", "Card", "Online Transfer", "E-Wallet", "Other"];
 
-export default function ExpenseForm({ onSubmit, initial, loading }) {
+export default function ExpenseForm({ onSubmit, initial, loading, cycle }) {
   const [form, setForm] = useState({
     date: initial?.date || new Date().toISOString().split("T")[0],
     amount: initial?.amount || "",
@@ -18,12 +18,19 @@ export default function ExpenseForm({ onSubmit, initial, loading }) {
   });
 
   const set = (k, v) => setForm((p) => ({ ...p, [k]: v }));
+  const minDate = cycle?.start_date || undefined;
+  const maxDate = cycle?.end_date || undefined;
 
   return (
     <div className="space-y-4">
       <div>
         <Label>Date</Label>
-        <Input type="date" value={form.date} onChange={(e) => set("date", e.target.value)} className="mt-1 h-12 text-base" />
+        <Input type="date" value={form.date} min={minDate} max={maxDate} onChange={(e) => set("date", e.target.value)} className="mt-1 h-12 text-base" />
+        {cycle?.start_date && (
+          <p className="mt-1 text-xs text-muted-foreground">
+            Only expenses from {cycle.start_date}{cycle.end_date ? ` to ${cycle.end_date}` : " onwards"} are counted in this cycle.
+          </p>
+        )}
       </div>
       <div>
         <Label>Amount (RM)</Label>

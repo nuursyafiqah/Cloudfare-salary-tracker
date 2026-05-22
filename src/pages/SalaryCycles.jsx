@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { base44 } from "@/api/base44Client";
+import { filterExpensesForCycle, formatDisplayDate } from "@/utils/cycleFilters";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -43,9 +44,10 @@ export default function SalaryCycles() {
         base44.entities.FixedSpending.filter({ salary_cycle_id: cy.id }),
         base44.entities.Expense.filter({ salary_cycle_id: cy.id }),
       ]);
+      const cycleExpenses = filterExpensesForCycle(expenses, cy);
       t[cy.id] = {
         fixedTotal: fixed.reduce((s, i) => s + (i.amount || 0), 0),
-        expenseTotal: expenses.reduce((s, i) => s + (i.amount || 0), 0),
+        expenseTotal: cycleExpenses.reduce((s, i) => s + (i.amount || 0), 0),
       };
     }));
     setTotals(t);
@@ -123,7 +125,7 @@ export default function SalaryCycles() {
     }
   };
 
-  const fmt = (d) => d ? new Date(d).toLocaleDateString("en-MY", { day: "numeric", month: "short", year: "numeric" }) : "—";
+  const fmt = formatDisplayDate;
   const fmtRM = (n) => `RM ${n.toLocaleString("en-MY", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
   return (

@@ -1,5 +1,6 @@
 import { useMemo, useState, useEffect } from "react";
 import { base44 } from "@/api/base44Client";
+import { filterExpensesForCycle, isDateInSalaryCycle } from "@/utils/cycleFilters";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
@@ -287,16 +288,24 @@ export default function Expenses() {
   }, [cycle]);
 
   const load = async () => {
-    const cycles = await base44.entities.SalaryCycle.filter({ status: "active" }, "-created_date", 1);
+    const cycles = await base44.entities.SalaryCycle.filter({ status: "active" }, "-start_date", 1);
     if (cycles.length > 0) {
-      setCycle(cycles[0]);
-      const e = await base44.entities.Expense.filter({ salary_cycle_id: cycles[0].id }, "-date");
-      setExpenses(e);
+      const activeCycle = cycles[0];
+      setCycle(activeCycle);
+      const e = await base44.entities.Expense.filter({ salary_cycle_id: activeCycle.id }, "-date");
+      setExpenses(filterExpensesForCycle(e, activeCycle));
     }
     setLoading(false);
   };
 
   const handleSubmit = async (data) => {
+    if (!isDateInSalaryCycle(data.date, cycle)) {
+      const start = cycle?.start_date || "the cycle start date";
+      const end = cycle?.end_date || "the next salary cycle";
+      alert(`Expense date must be within the current salary cycle (${start} to ${end}).`);
+      return;
+    }
+
     setSaving(true);
     if (editing) {
       await base44.entities.Expense.update(editing.id, data);
@@ -496,7 +505,7 @@ export default function Expenses() {
         <SheetContent side="bottom" className="max-h-[90vh] overflow-y-auto rounded-t-3xl">
           <SheetHeader><SheetTitle>{editing ? "Edit Expense" : "Add Expense"}</SheetTitle></SheetHeader>
           <div className="mt-4 pb-6">
-            <ExpenseForm onSubmit={handleSubmit} initial={editing} loading={saving} />
+            <ExpenseForm onSubmit={handleSubmit} initial={editing} loading={saving} cycle={cycle} />
           </div>
         </SheetContent>
       </Sheet>

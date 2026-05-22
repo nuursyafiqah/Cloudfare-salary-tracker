@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Plus, ArrowRightLeft, Info } from "lucide-react";
 import MobileLayout from "../components/MobileLayout";
 import SummaryCards from "../components/SummaryCards";
+import { filterExpensesForCycle, formatDisplayDate, parseDateOnly } from "@/utils/cycleFilters";
 
 export default function Dashboard() {
   const navigate = useNavigate();
@@ -15,7 +16,7 @@ export default function Dashboard() {
 
   useEffect(() => {
     (async () => {
-      const cycles = await base44.entities.SalaryCycle.filter({ status: "active" }, "-created_date", 1);
+      const cycles = await base44.entities.SalaryCycle.filter({ status: "active" }, "-start_date", 1);
       if (cycles.length > 0) {
         const c = cycles[0];
         setCycle(c);
@@ -24,7 +25,7 @@ export default function Dashboard() {
           base44.entities.Expense.filter({ salary_cycle_id: c.id }),
         ]);
         setFixed(f);
-        setExpenses(e);
+        setExpenses(filterExpensesForCycle(e, c));
       }
       setLoading(false);
     })();
@@ -32,8 +33,8 @@ export default function Dashboard() {
 
   const fixedTotal = fixed.reduce((s, i) => s + (i.amount || 0), 0);
   const expenseTotal = expenses.reduce((s, i) => s + (i.amount || 0), 0);
-  const fmt = (d) => new Date(d).toLocaleDateString("en-MY", { day: "numeric", month: "short", year: "numeric" });
-  const recentExpenses = [...expenses].sort((a, b) => new Date(b.date) - new Date(a.date)).slice(0, 5);
+  const fmt = formatDisplayDate;
+  const recentExpenses = [...expenses].sort((a, b) => (parseDateOnly(b.date) || 0) - (parseDateOnly(a.date) || 0)).slice(0, 5);
 
   if (loading) {
     return (
