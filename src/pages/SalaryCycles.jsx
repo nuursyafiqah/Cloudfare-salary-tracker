@@ -5,8 +5,9 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
-import { Plus, Info } from "lucide-react";
+import { Plus, Info, Trash2 } from "lucide-react";
 import MobileLayout from "../components/MobileLayout";
 
 export default function SalaryCycles() {
@@ -14,7 +15,9 @@ export default function SalaryCycles() {
   const [cycles, setCycles] = useState([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const [sheetOpen, setSheetOpen] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState(null);
   const [form, setForm] = useState({ start_date: new Date().toISOString().split("T")[0], salary_amount: "" });
   const [totals, setTotals] = useState({});
 
@@ -96,6 +99,30 @@ export default function SalaryCycles() {
     await load();
   };
 
+
+  const handleDeleteCycle = async () => {
+    if (!deleteTarget) return;
+
+    setDeleting(true);
+    try {
+      const [fixedItems, expenseItems] = await Promise.all([
+        base44.entities.FixedSpending.filter({ salary_cycle_id: deleteTarget.id }),
+        base44.entities.Expense.filter({ salary_cycle_id: deleteTarget.id }),
+      ]);
+
+      await Promise.all([
+        ...fixedItems.map((item) => base44.entities.FixedSpending.delete(item.id)),
+        ...expenseItems.map((item) => base44.entities.Expense.delete(item.id)),
+      ]);
+
+      await base44.entities.SalaryCycle.delete(deleteTarget.id);
+      setDeleteTarget(null);
+      await load();
+    } finally {
+      setDeleting(false);
+    }
+  };
+
   const fmt = (d) => d ? new Date(d).toLocaleDateString("en-MY", { day: "numeric", month: "short", year: "numeric" }) : "—";
   const fmtRM = (n) => `RM ${n.toLocaleString("en-MY", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
@@ -127,16 +154,36 @@ export default function SalaryCycles() {
               const totalSpent = t.fixedTotal + t.expenseTotal;
               const remaining = c.salary_amount - totalSpent;
               return (
-                <button
+                <div
                   key={c.id}
-                  className="w-full text-left bg-card rounded-xl p-4 border border-border space-y-2"
+                  role="button"
+                  tabIndex={0}
+                  className="w-full text-left bg-card rounded-xl p-4 border border-border space-y-2 cursor-pointer hover:bg-muted/40 transition-colors"
                   onClick={() => navigate(`/cycle/${c.id}`)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" || e.key === " ") navigate(`/cycle/${c.id}`);
+                  }}
                 >
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm font-medium">{fmt(c.start_date)} — {fmt(c.end_date)}</span>
-                    <Badge variant={c.status === "active" ? "default" : "secondary"} className="text-[10px]">
-                      {c.status === "active" ? "Active" : "Closed"}
-                    </Badge>
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="min-w-0">
+                      <span className="text-sm font-medium block">{fmt(c.start_date)} — {fmt(c.end_date)}</span>
+                      <div className="mt-1">
+                        <Badge variant={c.status === "active" ? "default" : "secondary"} className="text-[10px]">
+                          {c.status === "active" ? "Active" : "Closed"}
+                        </Badge>
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      className="p-2 -mr-1 -mt-1 rounded-lg hover:bg-destructive/10 shrink-0"
+                      aria-label="Delete salary cycle"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setDeleteTarget(c);
+                      }}
+                    >
+                      <Trash2 className="w-4 h-4 text-destructive" />
+                    </button>
                   </div>
                   <div className="flex justify-between text-xs text-muted-foreground">
                     <span>Salary: {fmtRM(c.salary_amount)}</span>
@@ -151,7 +198,7 @@ export default function SalaryCycles() {
                   <p className={`text-xs font-medium ${remaining >= 0 ? "text-emerald-600" : "text-red-600"}`}>
                     Remaining: {fmtRM(remaining)}
                   </p>
-                </button>
+                </div>
               );
             })}
           </div>
@@ -185,6 +232,36 @@ export default function SalaryCycles() {
           </div>
         </SheetContent>
       </Sheet>
+
+      <AlertDialog open={!!deleteTarget} onOpenChange={(open) => { if (!open && !deleting) setDeleteTarget(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete salary cycle?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will delete the selected salary cycle together with its fixed spending and daily expenses. This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          {deleteTarget && (
+            <div className="rounded-xl border border-border bg-muted/40 p-3 text-sm">
+              <p className="font-medium">{fmt(deleteTarget.start_date)} — {fmt(deleteTarget.end_date)}</p>
+              <p className="text-xs text-muted-foreground mt-1">Salary: {fmtRM(deleteTarget.salary_amount)}</p>
+            </div>
+          )}
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deleting}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              disabled={deleting}
+              onClick={(e) => {
+                e.preventDefault();
+                handleDeleteCycle();
+              }}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {deleting ? "Deleting..." : "Delete Cycle"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </MobileLayout>
   );
 }

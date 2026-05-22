@@ -5,7 +5,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 
-const categories = ["Food", "Groceries", "Transport", "Kids", "Bills", "Shopping", "Emergency", "Healthcare", "Entertainment", "Other"];
+const categories = ["Food", "Groceries", "Transport", "Kids", "Bills", "Shopping", "Emergency", "Healthcare", "Entertainment", "Hungerstation", "Naim", "OCC order Makan", "Wife Req.", "Wife Req. brg Anak", "Other"];
 const paymentMethods = ["Cash", "Card", "Online Transfer", "E-Wallet", "Other"];
 
 export default function ExpenseForm({ onSubmit, initial, loading }) {
