@@ -1,0 +1,48 @@
+{
+  "name": "FixedSpending",
+  "type": "object",
+  "properties": {
+    "salary_cycle_id": {
+      "type": "string",
+      "title": "Salary Cycle"
+    },
+    "name": {
+      "type": "string",
+      "title": "Name"
+    },
+    "amount": {
+      "type": "number",
+      "title": "Amount"
+    },
+    "category": {
+      "type": "string",
+      "enum": [
+        "Rent",
+        "Loan",
+        "School Fee",
+        "Internet",
+        "Insurance",
+        "Car Payment",
+        "Utilities",
+        "Subscription",
+        "Other"
+      ],
+      "title": "Category"
+    },
+    "repeat_every_cycle": {
+      "type": "boolean",
+      "default": false,
+      "title": "Repeat Every Cycle"
+    },
+    "note": {
+      "type": "string",
+      "title": "Note"
+    }
+  },
+  "required": [
+    "salary_cycle_id",
+    "name",
+    "amount",
+    "category"
+  ]
+}

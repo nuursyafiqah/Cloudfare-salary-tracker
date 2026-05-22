@@ -1,0 +1,56 @@
+{
+  "name": "Expense",
+  "type": "object",
+  "properties": {
+    "salary_cycle_id": {
+      "type": "string",
+      "title": "Salary Cycle"
+    },
+    "date": {
+      "type": "string",
+      "format": "date",
+      "title": "Date"
+    },
+    "amount": {
+      "type": "number",
+      "title": "Amount"
+    },
+    "category": {
+      "type": "string",
+      "enum": [
+        "Food",
+        "Groceries",
+        "Transport",
+        "Kids",
+        "Bills",
+        "Shopping",
+        "Emergency",
+        "Healthcare",
+        "Entertainment",
+        "Other"
+      ],
+      "title": "Category"
+    },
+    "description": {
+      "type": "string",
+      "title": "Description"
+    },
+    "payment_method": {
+      "type": "string",
+      "enum": [
+        "Cash",
+        "Card",
+        "Online Transfer",
+        "E-Wallet",
+        "Other"
+      ],
+      "title": "Payment Method"
+    }
+  },
+  "required": [
+    "salary_cycle_id",
+    "date",
+    "amount",
+    "category"
+  ]
+}

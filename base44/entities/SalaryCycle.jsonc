@@ -1,0 +1,38 @@
+{
+  "name": "SalaryCycle",
+  "type": "object",
+  "properties": {
+    "start_date": {
+      "type": "string",
+      "format": "date",
+      "title": "Salary Received Date"
+    },
+    "end_date": {
+      "type": "string",
+      "format": "date",
+      "title": "Cycle End Date"
+    },
+    "salary_amount": {
+      "type": "number",
+      "title": "Salary Received Amount"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "active",
+        "closed"
+      ],
+      "default": "active",
+      "title": "Status"
+    },
+    "note": {
+      "type": "string",
+      "title": "Note"
+    }
+  },
+  "required": [
+    "start_date",
+    "salary_amount",
+    "status"
+  ]
+}
