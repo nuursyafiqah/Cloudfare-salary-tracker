@@ -1,6 +1,4 @@
-import { base44 } from "@/api/base44Client";
-import { Button } from "@/components/ui/button";
-import { LogOut, HelpCircle, Info } from "lucide-react";
+import { HelpCircle, Info } from "lucide-react";
 import MobileLayout from "../components/MobileLayout";
 
 export default function SettingsPage() {
@@ -37,12 +35,12 @@ export default function SettingsPage() {
               <p className="font-medium">What is repeat every cycle?</p>
               <p className="text-muted-foreground mt-1">Fixed spending items marked as repeat will be automatically copied when you create a new salary cycle.</p>
             </div>
+            <div className="bg-card rounded-xl p-3 border border-border">
+              <p className="font-medium">Do users need to log in?</p>
+              <p className="text-muted-foreground mt-1">No. This public-link version can be opened and edited by anyone who has the website link.</p>
+            </div>
           </div>
         </div>
-
-        <Button variant="outline" className="w-full h-12 rounded-xl text-destructive gap-2" onClick={() => base44.auth.logout()}>
-          <LogOut className="w-4 h-4" /> Log Out
-        </Button>
       </div>
     </MobileLayout>
   );
