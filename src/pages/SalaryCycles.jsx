@@ -126,7 +126,7 @@ export default function SalaryCycles() {
   };
 
   const fmt = formatDisplayDate;
-  const fmtRM = (n) => `RM ${n.toLocaleString("en-MY", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  const fmtCurrency = (n) => `⃁ ${n.toLocaleString("en-MY", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
   return (
     <MobileLayout>
@@ -188,8 +188,8 @@ export default function SalaryCycles() {
                     </button>
                   </div>
                   <div className="flex justify-between text-xs text-muted-foreground">
-                    <span>Salary: {fmtRM(c.salary_amount)}</span>
-                    <span>Spent: {fmtRM(totalSpent)}</span>
+                    <span>Salary: {fmtCurrency(c.salary_amount)}</span>
+                    <span>Spent: {fmtCurrency(totalSpent)}</span>
                   </div>
                   <div className="h-2 bg-muted rounded-full overflow-hidden">
                     <div
@@ -198,7 +198,7 @@ export default function SalaryCycles() {
                     />
                   </div>
                   <p className={`text-xs font-medium ${remaining >= 0 ? "text-emerald-600" : "text-red-600"}`}>
-                    Remaining: {fmtRM(remaining)}
+                    Remaining: {fmtCurrency(remaining)}
                   </p>
                 </div>
               );
@@ -221,7 +221,7 @@ export default function SalaryCycles() {
               <Input type="date" value={form.start_date} onChange={(e) => setForm((p) => ({ ...p, start_date: e.target.value }))} className="mt-1 h-12 text-base" />
             </div>
             <div>
-              <Label>Salary Received Amount (RM)</Label>
+              <Label>Salary Received Amount (⃁)</Label>
               <Input type="number" step="0.01" placeholder="0.00" value={form.salary_amount} onChange={(e) => setForm((p) => ({ ...p, salary_amount: e.target.value }))} className="mt-1 h-12 text-base" />
             </div>
             <Button
@@ -246,7 +246,7 @@ export default function SalaryCycles() {
           {deleteTarget && (
             <div className="rounded-xl border border-border bg-muted/40 p-3 text-sm">
               <p className="font-medium">{fmt(deleteTarget.start_date)} — {fmt(deleteTarget.end_date)}</p>
-              <p className="text-xs text-muted-foreground mt-1">Salary: {fmtRM(deleteTarget.salary_amount)}</p>
+              <p className="text-xs text-muted-foreground mt-1">Salary: {fmtCurrency(deleteTarget.salary_amount)}</p>
             </div>
           )}
           <AlertDialogFooter>

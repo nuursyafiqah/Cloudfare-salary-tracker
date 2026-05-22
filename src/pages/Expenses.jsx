@@ -38,8 +38,8 @@ function fmtDate(value, withYear = false) {
   });
 }
 
-function fmtRM(value = 0) {
-  return `RM ${Number(value || 0).toLocaleString("en-MY", {
+function fmtCurrency(value = 0) {
+  return `⃁ ${Number(value || 0).toLocaleString("en-MY", {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
   })}`;
@@ -98,7 +98,7 @@ function MiniBarChart({ data }) {
             <p className="text-[10px] font-medium text-slate-400">Latest spending days</p>
           </div>
         </div>
-        <span className="text-[11px] font-bold text-slate-500">RM</span>
+        <span className="text-[11px] font-bold text-slate-500">⃁</span>
       </div>
 
       {visibleData.length === 0 ? (
@@ -174,7 +174,7 @@ function DonutChart({ data, total }) {
       </svg>
       <div className="absolute inset-0 flex flex-col items-center justify-center text-center">
         <span className="text-xs font-semibold text-slate-400">Total</span>
-        <span className="mt-1 text-lg font-extrabold text-slate-950">{fmtRM(total)}</span>
+        <span className="mt-1 text-lg font-extrabold text-slate-950">{fmtCurrency(total)}</span>
       </div>
     </div>
   );
@@ -215,7 +215,7 @@ function CategoryBreakdown({ data, total, compact = false }) {
                     <p className="text-[10px] font-medium text-slate-400">{item.count} item{item.count > 1 ? "s" : ""}</p>
                   </div>
                   <div className="text-right">
-                    <p className="text-xs font-extrabold text-slate-950">{fmtRM(item.amount)}</p>
+                    <p className="text-xs font-extrabold text-slate-950">{fmtCurrency(item.amount)}</p>
                     <p className="text-[10px] font-semibold text-slate-400">{percent.toFixed(1)}%</p>
                   </div>
                 </div>
@@ -247,7 +247,7 @@ function ExpenseRow({ expense, onEdit, onDelete, showActions = true }) {
           {fmtDate(expense.date, true)} · {expense.category}{expense.payment_method ? ` · ${expense.payment_method}` : ""}
         </p>
       </div>
-      <p className="shrink-0 text-sm font-extrabold text-rose-600">-{fmtRM(expense.amount)}</p>
+      <p className="shrink-0 text-sm font-extrabold text-rose-600">-{fmtCurrency(expense.amount)}</p>
       {showActions ? (
         <div className="flex shrink-0 gap-1">
           <button type="button" className="rounded-xl p-2 hover:bg-slate-100" onClick={() => onEdit(expense)} aria-label="Edit expense">
@@ -438,7 +438,7 @@ export default function Expenses() {
                       </div>
                       <div className="min-w-0 flex-1">
                         <p className="text-xs font-bold text-slate-500">Total Expenses</p>
-                        <h2 className="mt-1 text-2xl font-black tracking-tight text-slate-950">{fmtRM(overview.total)}</h2>
+                        <h2 className="mt-1 text-2xl font-black tracking-tight text-slate-950">{fmtCurrency(overview.total)}</h2>
                       </div>
                       <span className="rounded-full bg-rose-100 px-3 py-1 text-xs font-extrabold text-rose-700">
                         {expenses.length} item{expenses.length > 1 ? "s" : ""}
@@ -448,7 +448,7 @@ export default function Expenses() {
 
                   <div className="grid grid-cols-2 gap-3">
                     <StatCard icon={ReceiptText} label="Total Transactions" value={expenses.length} tone="blue" />
-                    <StatCard icon={WalletCards} label="Average per Day" value={fmtRM(overview.averagePerDay)} tone="amber" />
+                    <StatCard icon={WalletCards} label="Average per Day" value={fmtCurrency(overview.averagePerDay)} tone="amber" />
                     <StatCard
                       icon={CalendarDays}
                       label="Date Range"
@@ -476,7 +476,7 @@ export default function Expenses() {
 
                   <div className="flex items-center justify-between rounded-[1.25rem] bg-white p-4 shadow-sm ring-1 ring-slate-200/70">
                     <p className="text-sm font-extrabold text-slate-800">Total ({expenses.length} item{expenses.length > 1 ? "s" : ""})</p>
-                    <p className="text-2xl font-black text-rose-600">{fmtRM(overview.total)}</p>
+                    <p className="text-2xl font-black text-rose-600">{fmtCurrency(overview.total)}</p>
                   </div>
                 </div>
               )}

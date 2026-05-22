@@ -26,7 +26,7 @@ export default function FixedSpendingForm({ onSubmit, initial, loading }) {
         <Input placeholder="e.g. House Rent" value={form.name} onChange={(e) => set("name", e.target.value)} className="mt-1 h-12 text-base" />
       </div>
       <div>
-        <Label>Amount (RM)</Label>
+        <Label>Amount (⃁)</Label>
         <Input type="number" step="0.01" placeholder="0.00" value={form.amount} onChange={(e) => set("amount", e.target.value)} className="mt-1 h-12 text-base" />
       </div>
       <div>

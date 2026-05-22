@@ -72,7 +72,7 @@ export default function FixedSpending() {
 
         {cycle && (
           <div className="bg-amber-50 rounded-xl p-3 border border-amber-200">
-            <p className="text-sm font-semibold text-amber-800">Total Fixed: RM {total.toFixed(2)}</p>
+            <p className="text-sm font-semibold text-amber-800">Total Fixed: ⃁ {total.toFixed(2)}</p>
             <p className="text-xs text-amber-600 mt-0.5">These are your monthly commitments for this salary cycle.</p>
           </div>
         )}
@@ -96,7 +96,7 @@ export default function FixedSpending() {
                   </div>
                   <p className="text-xs text-muted-foreground">{i.category}{i.note ? ` · ${i.note}` : ""}</p>
                 </div>
-                <p className="text-sm font-semibold text-amber-600 shrink-0">RM {i.amount?.toFixed(2)}</p>
+                <p className="text-sm font-semibold text-amber-600 shrink-0">⃁ {i.amount?.toFixed(2)}</p>
                 <div className="flex gap-1 shrink-0">
                   <button className="p-2 rounded-lg hover:bg-muted" onClick={() => { setEditing(i); setSheetOpen(true); }}>
                     <Pencil className="w-3.5 h-3.5 text-muted-foreground" />

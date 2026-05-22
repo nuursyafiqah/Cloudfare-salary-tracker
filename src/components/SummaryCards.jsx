@@ -24,7 +24,7 @@ export default function SummaryCards({ cycle, fixedTotal, expenseTotal }) {
   const daysSince = startDate ? Math.max(1, Math.floor((new Date() - startDate) / 86400000)) : 0;
   const avgPerDay = daysSince > 0 ? (expenseTotal / daysSince) : 0;
 
-  const fmt = (n) => `RM ${n.toLocaleString("en-MY", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  const fmt = (n) => `⃁ ${n.toLocaleString("en-MY", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
   return (
     <div className="grid grid-cols-2 gap-3">

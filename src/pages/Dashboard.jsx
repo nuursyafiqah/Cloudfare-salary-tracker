@@ -110,7 +110,7 @@ export default function Dashboard() {
                         <p className="text-sm font-medium">{e.description || e.category}</p>
                         <p className="text-xs text-muted-foreground">{fmt(e.date)} · {e.category}</p>
                       </div>
-                      <p className="text-sm font-semibold text-rose-600">-RM {e.amount?.toFixed(2)}</p>
+                      <p className="text-sm font-semibold text-rose-600">-⃁ {e.amount?.toFixed(2)}</p>
                     </div>
                   ))}
                 </div>
