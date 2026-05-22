@@ -8,7 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
-import { Plus, Info, Trash2, ChevronRight } from "lucide-react";
+import { Plus, Info, Trash2, ChevronRight, Pencil } from "lucide-react";
 import MobileLayout from "../components/MobileLayout";
 
 export default function SalaryCycles() {
@@ -19,6 +19,9 @@ export default function SalaryCycles() {
   const [deleting, setDeleting] = useState(false);
   const [sheetOpen, setSheetOpen] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState(null);
+  const [editSalaryTarget, setEditSalaryTarget] = useState(null);
+  const [editSalaryAmount, setEditSalaryAmount] = useState("");
+  const [updatingSalary, setUpdatingSalary] = useState(false);
   const [form, setForm] = useState({ start_date: new Date().toISOString().split("T")[0], salary_amount: "" });
   const [totals, setTotals] = useState({});
 
@@ -161,6 +164,33 @@ export default function SalaryCycles() {
   };
 
 
+  const openEditSalary = (cycle) => {
+    setEditSalaryTarget(cycle);
+    setEditSalaryAmount(cycle.salary_amount?.toString() || "");
+  };
+
+  const handleUpdateSalary = async () => {
+    if (!editSalaryTarget) return;
+
+    const nextSalaryAmount = parseFloat(editSalaryAmount);
+    if (!Number.isFinite(nextSalaryAmount) || nextSalaryAmount < 0) {
+      alert("Please enter a valid salary amount.");
+      return;
+    }
+
+    setUpdatingSalary(true);
+    try {
+      await base44.entities.SalaryCycle.update(editSalaryTarget.id, {
+        salary_amount: nextSalaryAmount,
+      });
+      setEditSalaryTarget(null);
+      setEditSalaryAmount("");
+      await load();
+    } finally {
+      setUpdatingSalary(false);
+    }
+  };
+
   const handleDeleteCycle = async () => {
     if (!deleteTarget) return;
 
@@ -246,14 +276,27 @@ export default function SalaryCycles() {
                       <Trash2 className="w-4 h-4 text-destructive" />
                     </button>
                   </div>
-                  <div className="flex justify-between text-xs text-muted-foreground">
-                    <span>Salary: {fmtCurrency(c.salary_amount)}</span>
-                    <span>Spent: {fmtCurrency(totalSpent)}</span>
+                  <div className="flex items-center justify-between gap-2 text-xs text-muted-foreground">
+                    <div className="flex min-w-0 items-center gap-1.5">
+                      <span className="truncate">Salary: {fmtCurrency(c.salary_amount || 0)}</span>
+                      <button
+                        type="button"
+                        className="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-lg text-primary hover:bg-primary/10"
+                        aria-label="Edit salary amount"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          openEditSalary(c);
+                        }}
+                      >
+                        <Pencil className="h-3.5 w-3.5" />
+                      </button>
+                    </div>
+                    <span className="shrink-0">Spent: {fmtCurrency(totalSpent)}</span>
                   </div>
                   <div className="h-2 bg-muted rounded-full overflow-hidden">
                     <div
                       className={`h-full rounded-full transition-all ${remaining >= 0 ? "bg-emerald-500" : "bg-red-500"}`}
-                      style={{ width: `${Math.min(100, (totalSpent / c.salary_amount) * 100)}%` }}
+                      style={{ width: `${c.salary_amount > 0 ? Math.min(100, (totalSpent / c.salary_amount) * 100) : 0}%` }}
                     />
                   </div>
                   <div className="flex items-center justify-between gap-2">
@@ -294,6 +337,49 @@ export default function SalaryCycles() {
               onClick={handleCreate}
             >
               {saving ? "Creating..." : "Start Salary Cycle"}
+            </Button>
+          </div>
+        </SheetContent>
+      </Sheet>
+
+      <Sheet
+        open={!!editSalaryTarget}
+        onOpenChange={(open) => {
+          if (!open && !updatingSalary) {
+            setEditSalaryTarget(null);
+            setEditSalaryAmount("");
+          }
+        }}
+      >
+        <SheetContent side="bottom" className="rounded-t-2xl">
+          <SheetHeader><SheetTitle>Edit Salary Amount</SheetTitle></SheetHeader>
+          <div className="mt-4 space-y-4 pb-6">
+            {editSalaryTarget && (
+              <div className="rounded-xl border border-border bg-muted/40 p-3 text-sm">
+                <p className="font-medium">{fmt(editSalaryTarget.start_date)} — {fmt(editSalaryTarget.end_date)}</p>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  Update the salary amount for this cycle only. Remaining balance will recalculate automatically.
+                </p>
+              </div>
+            )}
+            <div>
+              <Label>Salary Received Amount (⃁)</Label>
+              <Input
+                type="number"
+                step="0.01"
+                min="0"
+                placeholder="0.00"
+                value={editSalaryAmount}
+                onChange={(e) => setEditSalaryAmount(e.target.value)}
+                className="mt-1 h-12 text-base"
+              />
+            </div>
+            <Button
+              className="w-full h-12 text-base font-semibold rounded-xl"
+              disabled={!editSalaryAmount || updatingSalary}
+              onClick={handleUpdateSalary}
+            >
+              {updatingSalary ? "Saving..." : "Save Salary Amount"}
             </Button>
           </div>
         </SheetContent>
