@@ -6,7 +6,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 
-const categories = ["Rent", "Loan", "School Fee", "Internet", "Insurance", "Car Payment", "Utilities", "Subscription", "Other"];
+const categories = ["Rent", "Loan", "Pika & (mak abah)", "Yuran Anak", "Loan ASB (Saving)", "Loan Rumah", "Internet", "Insurance", "Utilities", "Subscription", "Other"];
 
 export default function FixedSpendingForm({ onSubmit, initial, loading }) {
   const [form, setForm] = useState({

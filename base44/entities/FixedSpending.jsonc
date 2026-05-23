@@ -19,10 +19,12 @@
       "enum": [
         "Rent",
         "Loan",
-        "School Fee",
+        "Pika & (mak abah)",
+        "Yuran Anak",
+        "Loan ASB (Saving)",
+        "Loan Rumah",
         "Internet",
         "Insurance",
-        "Car Payment",
         "Utilities",
         "Subscription",
         "Other"

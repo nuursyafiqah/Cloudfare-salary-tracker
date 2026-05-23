@@ -111,22 +111,22 @@ export default function FixedSpending() {
         ) : items.length === 0 && cycle ? (
           <p className="text-sm text-muted-foreground text-center py-8">No fixed spending yet. Tap "Add" to record commitments like rent, loans, etc.</p>
         ) : (
-          <div className="space-y-2">
+          <div className="space-y-1.5">
             {items.map((i) => (
-              <div key={i.id} className="bg-card rounded-xl p-3 border border-border flex items-center gap-3">
+              <div key={i.id} className="bg-card rounded-xl px-3 py-2 border border-border flex items-center gap-2 shadow-sm">
                 <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-1.5">
+                  <div className="flex items-center gap-1.5 leading-tight">
                     <p className="text-sm font-medium truncate">{i.name}</p>
                     {i.repeat_every_cycle && <Repeat className="w-3 h-3 text-emerald-500 shrink-0" />}
                   </div>
-                  <p className="text-xs text-muted-foreground">{i.category}{i.note ? ` · ${i.note}` : ""}</p>
+                  <p className="text-[11px] leading-tight text-muted-foreground mt-0.5">{i.category}{i.note ? ` · ${i.note}` : ""}</p>
                 </div>
-                <p className="text-sm font-semibold text-amber-600 shrink-0">⃁ {i.amount?.toFixed(2)}</p>
-                <div className="flex gap-1 shrink-0">
-                  <button className="p-2 rounded-lg hover:bg-muted" onClick={() => { setEditing(i); setSheetOpen(true); }}>
+                <p className="text-sm font-semibold text-amber-600 shrink-0 ml-1">⃁ {i.amount?.toFixed(2)}</p>
+                <div className="flex gap-0.5 shrink-0">
+                  <button className="p-1.5 rounded-lg hover:bg-muted" onClick={() => { setEditing(i); setSheetOpen(true); }}>
                     <Pencil className="w-3.5 h-3.5 text-muted-foreground" />
                   </button>
-                  <button className="p-2 rounded-lg hover:bg-muted" onClick={() => setDeleteId(i.id)}>
+                  <button className="p-1.5 rounded-lg hover:bg-muted" onClick={() => setDeleteId(i.id)}>
                     <Trash2 className="w-3.5 h-3.5 text-destructive" />
                   </button>
                 </div>
