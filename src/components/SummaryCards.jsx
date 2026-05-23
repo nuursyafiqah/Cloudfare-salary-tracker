@@ -47,9 +47,6 @@ export default function SummaryCards({ cycle, fixedTotal, expenseTotal }) {
   return (
     <div className="grid grid-cols-2 gap-3">
       <Card icon={Wallet} label="Salary" value={fmt(salary)} color="bg-emerald-500" />
-      <Card icon={PiggyBank} label="Fixed Spending" value={fmt(fixedTotal)} color="bg-amber-500" to="/fixed" />
-      <Card icon={CreditCard} label="Daily Expenses" value={fmt(expenseTotal)} color="bg-blue-500" to="/expenses" />
-      <Card icon={TrendingDown} label="Total Spent" value={fmt(totalSpent)} color="bg-rose-500" />
       <Card
         icon={Activity}
         label="Remaining"
@@ -57,6 +54,9 @@ export default function SummaryCards({ cycle, fixedTotal, expenseTotal }) {
         color={remaining >= 0 ? "bg-teal-500" : "bg-red-600"}
         sub={remaining < 0 ? "Over budget!" : ""}
       />
+      <Card icon={CreditCard} label="Daily Expenses" value={fmt(expenseTotal)} color="bg-blue-500" to="/expenses" />
+      <Card icon={PiggyBank} label="Fixed Spending" value={fmt(fixedTotal)} color="bg-amber-500" to="/fixed" />
+      <Card icon={TrendingDown} label="Total Spent" value={fmt(totalSpent)} color="bg-rose-500" />
       <Card
         icon={Calendar}
         label="Days / Avg"
