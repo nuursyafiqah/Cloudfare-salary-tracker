@@ -10,59 +10,62 @@ import { formatDisplayDate } from "@/utils/cycleFilters";
 import MobileLayout from "../components/MobileLayout";
 import FixedSpendingForm from "../components/FixedSpendingForm";
 
-const PAID_STORAGE_KEY = "salary-cycle-fixed-spending-paid-v1";
+const LEGACY_PAID_STORAGE_KEY = "salary-cycle-fixed-spending-paid-v1";
 
-const readPaidStorage = () => {
+const readLegacyPaidStorage = () => {
   try {
-    return JSON.parse(window.localStorage.getItem(PAID_STORAGE_KEY) || "{}");
+    return JSON.parse(window.localStorage.getItem(LEGACY_PAID_STORAGE_KEY) || "{}");
   } catch {
     return {};
   }
 };
 
-const writePaidStorage = (itemId, isPaid) => {
+const removeLegacyPaidStorage = () => {
   try {
-    const paidMap = readPaidStorage();
-    paidMap[itemId] = !!isPaid;
-    window.localStorage.setItem(PAID_STORAGE_KEY, JSON.stringify(paidMap));
+    window.localStorage.removeItem(LEGACY_PAID_STORAGE_KEY);
   } catch {
-    // localStorage may be unavailable in some private browsers. Database save still runs.
+    // Ignore private-browser storage limitations.
   }
 };
 
-const removePaidStorage = (itemId) => {
+const migrateLegacyPaidStorage = async (fixedItems = []) => {
+  const paidMap = readLegacyPaidStorage();
+  const paidIds = Object.keys(paidMap);
+
+  if (paidIds.length === 0) return fixedItems;
+
+  const migratedItems = fixedItems.map((item) => {
+    if (!Object.prototype.hasOwnProperty.call(paidMap, item.id)) return item;
+    return { ...item, is_paid: !!paidMap[item.id] };
+  });
+
+  const updates = migratedItems
+    .filter((item) => Object.prototype.hasOwnProperty.call(paidMap, item.id))
+    .map((item) => base44.entities.FixedSpending.update(item.id, { is_paid: !!item.is_paid }));
+
   try {
-    const paidMap = readPaidStorage();
-    delete paidMap[itemId];
-    window.localStorage.setItem(PAID_STORAGE_KEY, JSON.stringify(paidMap));
-  } catch {
-    // Ignore storage cleanup errors.
+    await Promise.all(updates);
+    removeLegacyPaidStorage();
+  } catch (error) {
+    console.error("Failed to migrate saved paid ticks from browser storage to Base44", error);
   }
+
+  return migratedItems;
 };
 
-const mergePaidStorage = (fixedItems = []) => {
-  const paidMap = readPaidStorage();
+const normalizeFixedItems = (fixedItems = []) => {
   return fixedItems.map((item) => ({
     ...item,
-    is_paid: Object.prototype.hasOwnProperty.call(paidMap, item.id) ? paidMap[item.id] : !!item.is_paid,
+    is_paid: !!item.is_paid,
   }));
 };
-
-const buildFixedSpendingPayload = (item, nextPaid) => ({
-  salary_cycle_id: item.salary_cycle_id,
-  name: item.name,
-  amount: item.amount,
-  category: item.category,
-  repeat_every_cycle: !!item.repeat_every_cycle,
-  is_paid: !!nextPaid,
-  note: item.note || "",
-});
 
 export default function FixedSpending() {
   const [cycle, setCycle] = useState(null);
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [savingPaidIds, setSavingPaidIds] = useState([]);
   const [sheetOpen, setSheetOpen] = useState(false);
   const [editing, setEditing] = useState(null);
   const [deleteId, setDeleteId] = useState(null);
@@ -93,7 +96,8 @@ export default function FixedSpending() {
     if (selectedCycle) {
       setCycle(selectedCycle);
       const f = await base44.entities.FixedSpending.filter({ salary_cycle_id: selectedCycle.id });
-      setItems(mergePaidStorage(f));
+      const migratedFixedItems = await migrateLegacyPaidStorage(f);
+      setItems(normalizeFixedItems(migratedFixedItems));
     } else {
       setCycle(null);
       setItems([]);
@@ -104,9 +108,16 @@ export default function FixedSpending() {
   const handleSubmit = async (data) => {
     setSaving(true);
     if (editing) {
-      await base44.entities.FixedSpending.update(editing.id, { ...data, is_paid: editing.is_paid ?? false });
+      await base44.entities.FixedSpending.update(editing.id, {
+        ...data,
+        is_paid: !!editing.is_paid,
+      });
     } else {
-      await base44.entities.FixedSpending.create({ ...data, salary_cycle_id: cycle.id, is_paid: false });
+      await base44.entities.FixedSpending.create({
+        ...data,
+        salary_cycle_id: cycle.id,
+        is_paid: false,
+      });
     }
     setSheetOpen(false);
     setEditing(null);
@@ -116,7 +127,6 @@ export default function FixedSpending() {
 
   const handleDelete = async () => {
     await base44.entities.FixedSpending.delete(deleteId);
-    removePaidStorage(deleteId);
     setDeleteId(null);
     await load();
   };
@@ -124,15 +134,19 @@ export default function FixedSpending() {
   const togglePaid = async (item) => {
     const nextPaid = !item.is_paid;
 
-    // Save immediately in browser storage so the tick remains after refresh.
-    // Database update below keeps the value in Base44 when the entity field is available.
-    writePaidStorage(item.id, nextPaid);
+    // Save the tick to Base44, not localStorage, so it remains visible after refresh
+    // and also when opening the same app from incognito or another browser.
+    setSavingPaidIds((prev) => [...prev, item.id]);
     setItems((prev) => prev.map((fixedItem) => (fixedItem.id === item.id ? { ...fixedItem, is_paid: nextPaid } : fixedItem)));
 
     try {
-      await base44.entities.FixedSpending.update(item.id, buildFixedSpendingPayload(item, nextPaid));
+      await base44.entities.FixedSpending.update(item.id, { is_paid: nextPaid });
     } catch (error) {
-      console.error("Failed to update paid status in database. Local paid tick is still saved for this device.", error);
+      console.error("Failed to save paid status", error);
+      setItems((prev) => prev.map((fixedItem) => (fixedItem.id === item.id ? { ...fixedItem, is_paid: item.is_paid } : fixedItem)));
+      alert("Paid tick could not be saved. Please check your connection and try again.");
+    } finally {
+      setSavingPaidIds((prev) => prev.filter((id) => id !== item.id));
     }
   };
 
@@ -184,39 +198,44 @@ export default function FixedSpending() {
           <p className="text-sm text-muted-foreground text-center py-8">No fixed spending yet. Tap "Add" to record commitments like rent, loans, etc.</p>
         ) : (
           <div className="space-y-1.5">
-            {items.map((i) => (
-              <div
-                key={i.id}
-                className={`rounded-xl px-3 py-2 border flex items-center gap-2 shadow-sm transition-colors ${
-                  i.is_paid ? "bg-emerald-50 border-emerald-200" : "bg-card border-border"
-                }`}
-              >
-                <Checkbox
-                  checked={!!i.is_paid}
-                  onCheckedChange={() => togglePaid(i)}
-                  className="h-5 w-5 rounded-md shrink-0"
-                  aria-label={i.is_paid ? `Mark ${i.name} as unpaid` : `Mark ${i.name} as paid`}
-                />
+            {items.map((i) => {
+              const isSavingPaid = savingPaidIds.includes(i.id);
 
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-1.5 leading-tight">
-                    <p className="text-sm font-medium truncate">{i.name}</p>
-                    {i.repeat_every_cycle && <Repeat className="w-3 h-3 text-emerald-500 shrink-0" />}
-                    {i.is_paid && <Badge className="h-5 px-1.5 text-[10px] bg-emerald-100 text-emerald-700 hover:bg-emerald-100">Paid</Badge>}
+              return (
+                <div
+                  key={i.id}
+                  className={`rounded-xl px-3 py-2 border flex items-center gap-2 shadow-sm transition-colors ${
+                    i.is_paid ? "bg-emerald-50 border-emerald-200" : "bg-card border-border"
+                  } ${isSavingPaid ? "opacity-70" : ""}`}
+                >
+                  <Checkbox
+                    checked={!!i.is_paid}
+                    onCheckedChange={() => togglePaid(i)}
+                    disabled={isSavingPaid}
+                    className="h-5 w-5 rounded-md shrink-0"
+                    aria-label={i.is_paid ? `Mark ${i.name} as unpaid` : `Mark ${i.name} as paid`}
+                  />
+
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-1.5 leading-tight">
+                      <p className="text-sm font-medium truncate">{i.name}</p>
+                      {i.repeat_every_cycle && <Repeat className="w-3 h-3 text-emerald-500 shrink-0" />}
+                      {i.is_paid && <Badge className="h-5 px-1.5 text-[10px] bg-emerald-100 text-emerald-700 hover:bg-emerald-100">Paid</Badge>}
+                    </div>
+                    <p className="text-[11px] leading-tight text-muted-foreground mt-0.5">{i.category}{i.note ? ` · ${i.note}` : ""}</p>
                   </div>
-                  <p className="text-[11px] leading-tight text-muted-foreground mt-0.5">{i.category}{i.note ? ` · ${i.note}` : ""}</p>
+                  <p className={`text-sm font-semibold shrink-0 ml-1 ${i.is_paid ? "text-emerald-600" : "text-amber-600"}`}>⃁ {i.amount?.toFixed(2)}</p>
+                  <div className="flex gap-0.5 shrink-0">
+                    <button className="p-1.5 rounded-lg hover:bg-muted" onClick={() => { setEditing(i); setSheetOpen(true); }}>
+                      <Pencil className="w-3.5 h-3.5 text-muted-foreground" />
+                    </button>
+                    <button className="p-1.5 rounded-lg hover:bg-muted" onClick={() => setDeleteId(i.id)}>
+                      <Trash2 className="w-3.5 h-3.5 text-destructive" />
+                    </button>
+                  </div>
                 </div>
-                <p className={`text-sm font-semibold shrink-0 ml-1 ${i.is_paid ? "text-emerald-600" : "text-amber-600"}`}>⃁ {i.amount?.toFixed(2)}</p>
-                <div className="flex gap-0.5 shrink-0">
-                  <button className="p-1.5 rounded-lg hover:bg-muted" onClick={() => { setEditing(i); setSheetOpen(true); }}>
-                    <Pencil className="w-3.5 h-3.5 text-muted-foreground" />
-                  </button>
-                  <button className="p-1.5 rounded-lg hover:bg-muted" onClick={() => setDeleteId(i.id)}>
-                    <Trash2 className="w-3.5 h-3.5 text-destructive" />
-                  </button>
-                </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
       </div>
