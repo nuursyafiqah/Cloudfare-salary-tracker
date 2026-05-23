@@ -8,13 +8,27 @@ const ENTITY_ROUTES = {
 };
 
 async function apiRequest(path, options = {}) {
-  const response = await fetch(path, {
-    ...options,
-    headers: {
-      "Content-Type": "application/json",
-      ...(options.headers || {}),
-    },
-  });
+  const controller = new AbortController();
+  const timeoutId = window.setTimeout(() => controller.abort(), 15000);
+
+  let response;
+  try {
+    response = await fetch(path, {
+      ...options,
+      signal: controller.signal,
+      headers: {
+        "Content-Type": "application/json",
+        ...(options.headers || {}),
+      },
+    });
+  } catch (err) {
+    if (err?.name === "AbortError") {
+      throw new Error("Cloudflare API took too long to respond. Please refresh and try again.");
+    }
+    throw err;
+  } finally {
+    window.clearTimeout(timeoutId);
+  }
 
   const contentType = response.headers.get("content-type") || "";
   const payload = contentType.includes("application/json")

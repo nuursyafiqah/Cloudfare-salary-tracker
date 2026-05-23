@@ -13,21 +13,29 @@ export default function Dashboard() {
   const [fixed, setFixed] = useState([]);
   const [expenses, setExpenses] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
 
   useEffect(() => {
     (async () => {
-      const cycles = await cloudflare.entities.SalaryCycle.filter({ status: "active" }, "-start_date", 1);
-      if (cycles.length > 0) {
-        const c = cycles[0];
-        setCycle(c);
-        const [f, e] = await Promise.all([
-          cloudflare.entities.FixedSpending.filter({ salary_cycle_id: c.id }),
-          cloudflare.entities.Expense.filter({ salary_cycle_id: c.id }),
-        ]);
-        setFixed(f);
-        setExpenses(filterExpensesForCycle(e, c));
+      try {
+        setError("");
+        const cycles = await cloudflare.entities.SalaryCycle.filter({ status: "active" }, "-start_date", 1);
+        if (cycles.length > 0) {
+          const c = cycles[0];
+          setCycle(c);
+          const [f, e] = await Promise.all([
+            cloudflare.entities.FixedSpending.filter({ salary_cycle_id: c.id }),
+            cloudflare.entities.Expense.filter({ salary_cycle_id: c.id }),
+          ]);
+          setFixed(f);
+          setExpenses(filterExpensesForCycle(e, c));
+        }
+      } catch (err) {
+        console.error("Failed to load dashboard", err);
+        setError(err?.message || "Dashboard failed to load.");
+      } finally {
+        setLoading(false);
       }
-      setLoading(false);
     })();
   }, []);
 
@@ -41,6 +49,25 @@ export default function Dashboard() {
       <MobileLayout>
         <div className="flex items-center justify-center h-60">
           <div className="w-6 h-6 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+        </div>
+      </MobileLayout>
+    );
+  }
+
+  if (error) {
+    return (
+      <MobileLayout>
+        <div className="space-y-4 py-10 text-center">
+          <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-red-50 text-red-600">
+            !
+          </div>
+          <div>
+            <h1 className="text-lg font-semibold">Dashboard cannot load</h1>
+            <p className="mt-2 text-sm text-muted-foreground break-words">{error}</p>
+          </div>
+          <Button className="h-11 rounded-xl" onClick={() => window.location.reload()}>
+            Refresh
+          </Button>
         </div>
       </MobileLayout>
     );
