@@ -36,6 +36,11 @@
       "default": false,
       "title": "Repeat Every Cycle"
     },
+    "is_paid": {
+      "type": "boolean",
+      "default": false,
+      "title": "Paid"
+    },
     "note": {
       "type": "string",
       "title": "Note"

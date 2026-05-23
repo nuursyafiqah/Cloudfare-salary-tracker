@@ -149,6 +149,7 @@ export default function SalaryCycles() {
               amount: f.amount,
               category: f.category,
               repeat_every_cycle: true,
+              is_paid: false,
               note: f.note,
             }))
           );

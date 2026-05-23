@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Plus, Pencil, Trash2, Repeat } from "lucide-react";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
 import { formatDisplayDate } from "@/utils/cycleFilters";
 import MobileLayout from "../components/MobileLayout";
@@ -55,9 +56,9 @@ export default function FixedSpending() {
   const handleSubmit = async (data) => {
     setSaving(true);
     if (editing) {
-      await base44.entities.FixedSpending.update(editing.id, data);
+      await base44.entities.FixedSpending.update(editing.id, { ...data, is_paid: editing.is_paid ?? false });
     } else {
-      await base44.entities.FixedSpending.create({ ...data, salary_cycle_id: cycle.id });
+      await base44.entities.FixedSpending.create({ ...data, salary_cycle_id: cycle.id, is_paid: false });
     }
     setSheetOpen(false);
     setEditing(null);
@@ -71,7 +72,21 @@ export default function FixedSpending() {
     await load();
   };
 
+  const togglePaid = async (item) => {
+    const nextPaid = !item.is_paid;
+    setItems((prev) => prev.map((fixedItem) => (fixedItem.id === item.id ? { ...fixedItem, is_paid: nextPaid } : fixedItem)));
+
+    try {
+      await base44.entities.FixedSpending.update(item.id, { is_paid: nextPaid });
+    } catch (error) {
+      setItems((prev) => prev.map((fixedItem) => (fixedItem.id === item.id ? item : fixedItem)));
+      console.error("Failed to update paid status", error);
+    }
+  };
+
   const total = items.reduce((s, i) => s + (i.amount || 0), 0);
+  const paidItems = items.filter((i) => i.is_paid);
+  const paidTotal = paidItems.reduce((s, i) => s + (i.amount || 0), 0);
 
   return (
     <MobileLayout>
@@ -98,7 +113,12 @@ export default function FixedSpending() {
               <p className="text-sm font-semibold text-amber-800">Total Fixed: ⃁ {total.toFixed(2)}</p>
               {cycle.status !== "active" && <Badge variant="secondary" className="bg-amber-100 text-amber-700 hover:bg-amber-100">Closed</Badge>}
             </div>
-            <p className="text-xs text-amber-600 mt-0.5">These are your commitments for this selected salary cycle.</p>
+            <p className="text-xs text-amber-600 mt-0.5">Tick the box after payment so you can track what is already paid.</p>
+            {items.length > 0 && (
+              <p className="text-xs text-amber-700 mt-1 font-medium">
+                Paid: {paidItems.length}/{items.length} items · ⃁ {paidTotal.toFixed(2)}
+              </p>
+            )}
           </div>
         )}
 
@@ -113,15 +133,28 @@ export default function FixedSpending() {
         ) : (
           <div className="space-y-1.5">
             {items.map((i) => (
-              <div key={i.id} className="bg-card rounded-xl px-3 py-2 border border-border flex items-center gap-2 shadow-sm">
+              <div
+                key={i.id}
+                className={`rounded-xl px-3 py-2 border flex items-center gap-2 shadow-sm transition-colors ${
+                  i.is_paid ? "bg-emerald-50 border-emerald-200" : "bg-card border-border"
+                }`}
+              >
+                <Checkbox
+                  checked={!!i.is_paid}
+                  onCheckedChange={() => togglePaid(i)}
+                  className="h-5 w-5 rounded-md shrink-0"
+                  aria-label={i.is_paid ? `Mark ${i.name} as unpaid` : `Mark ${i.name} as paid`}
+                />
+
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-1.5 leading-tight">
-                    <p className="text-sm font-medium truncate">{i.name}</p>
+                    <p className={`text-sm font-medium truncate ${i.is_paid ? "line-through text-muted-foreground" : ""}`}>{i.name}</p>
                     {i.repeat_every_cycle && <Repeat className="w-3 h-3 text-emerald-500 shrink-0" />}
+                    {i.is_paid && <Badge className="h-5 px-1.5 text-[10px] bg-emerald-100 text-emerald-700 hover:bg-emerald-100">Paid</Badge>}
                   </div>
                   <p className="text-[11px] leading-tight text-muted-foreground mt-0.5">{i.category}{i.note ? ` · ${i.note}` : ""}</p>
                 </div>
-                <p className="text-sm font-semibold text-amber-600 shrink-0 ml-1">⃁ {i.amount?.toFixed(2)}</p>
+                <p className={`text-sm font-semibold shrink-0 ml-1 ${i.is_paid ? "text-emerald-600" : "text-amber-600"}`}>⃁ {i.amount?.toFixed(2)}</p>
                 <div className="flex gap-0.5 shrink-0">
                   <button className="p-1.5 rounded-lg hover:bg-muted" onClick={() => { setEditing(i); setSheetOpen(true); }}>
                     <Pencil className="w-3.5 h-3.5 text-muted-foreground" />
