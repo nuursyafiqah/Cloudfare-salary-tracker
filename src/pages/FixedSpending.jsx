@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { base44 } from "@/api/base44Client";
+import { cloudflare } from "@/api/cloudflareClient";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
@@ -47,7 +47,7 @@ const migrateLegacyPaidStorage = async (fixedItems = []) => {
 
   const updates = migratedItems
     .filter((item) => Object.prototype.hasOwnProperty.call(paidMap, item.id))
-    .map((item) => base44.entities.FixedSpending.update(item.id, {
+    .map((item) => cloudflare.entities.FixedSpending.update(item.id, {
       is_paid: !!item.is_paid,
       note: item.note,
     }));
@@ -56,7 +56,7 @@ const migrateLegacyPaidStorage = async (fixedItems = []) => {
     await Promise.all(updates);
     removeLegacyPaidStorage();
   } catch (error) {
-    console.error("Failed to migrate saved paid ticks from browser storage to Base44", error);
+    console.error("Failed to migrate saved paid ticks from browser storage to the cloud database", error);
   }
 
   return migratedItems;
@@ -69,7 +69,7 @@ const syncMissingPaidMarkers = async (fixedItems = []) => {
   try {
     await Promise.all(
       itemsMissingMarker.map((item) =>
-        base44.entities.FixedSpending.update(item.id, {
+        cloudflare.entities.FixedSpending.update(item.id, {
           is_paid: true,
           note: applyPaidStatusToNote(item.note, true),
         })
@@ -107,15 +107,15 @@ export default function FixedSpending() {
     let selectedCycle = null;
 
     if (selectedCycleId) {
-      selectedCycle = await base44.entities.SalaryCycle.get(selectedCycleId);
+      selectedCycle = await cloudflare.entities.SalaryCycle.get(selectedCycleId);
     } else {
-      const cycles = await base44.entities.SalaryCycle.filter({ status: "active" }, "-created_date", 1);
+      const cycles = await cloudflare.entities.SalaryCycle.filter({ status: "active" }, "-created_date", 1);
       selectedCycle = cycles[0] || null;
     }
 
     if (selectedCycle) {
       setCycle(selectedCycle);
-      const f = await base44.entities.FixedSpending.filter({ salary_cycle_id: selectedCycle.id });
+      const f = await cloudflare.entities.FixedSpending.filter({ salary_cycle_id: selectedCycle.id });
       const migratedFixedItems = await migrateLegacyPaidStorage(f);
       await syncMissingPaidMarkers(migratedFixedItems);
       setItems(normalizeFixedSpendingItems(migratedFixedItems));
@@ -129,13 +129,13 @@ export default function FixedSpending() {
   const handleSubmit = async (data) => {
     setSaving(true);
     if (editing) {
-      await base44.entities.FixedSpending.update(editing.id, {
+      await cloudflare.entities.FixedSpending.update(editing.id, {
         ...data,
         is_paid: !!editing.is_paid,
         note: applyPaidStatusToNote(data.note, !!editing.is_paid),
       });
     } else {
-      await base44.entities.FixedSpending.create({
+      await cloudflare.entities.FixedSpending.create({
         ...data,
         salary_cycle_id: cycle.id,
         is_paid: false,
@@ -149,7 +149,7 @@ export default function FixedSpending() {
   };
 
   const handleDelete = async () => {
-    await base44.entities.FixedSpending.delete(deleteId);
+    await cloudflare.entities.FixedSpending.delete(deleteId);
     setDeleteId(null);
     await load();
   };
@@ -157,13 +157,13 @@ export default function FixedSpending() {
   const togglePaid = async (item) => {
     const nextPaid = !item.is_paid;
 
-    // Save the tick to Base44, not localStorage, so it remains visible after refresh
+    // Save the tick to the cloud database, not localStorage, so it remains visible after refresh
     // and also when opening the same app from incognito or another browser.
     setSavingPaidIds((prev) => [...prev, item.id]);
     setItems((prev) => prev.map((fixedItem) => (fixedItem.id === item.id ? { ...fixedItem, is_paid: nextPaid } : fixedItem)));
 
     try {
-      await base44.entities.FixedSpending.update(item.id, {
+      await cloudflare.entities.FixedSpending.update(item.id, {
         is_paid: nextPaid,
         note: applyPaidStatusToNote(item.note, nextPaid),
       });

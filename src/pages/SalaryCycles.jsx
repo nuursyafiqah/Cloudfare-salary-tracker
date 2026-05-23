@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { base44 } from "@/api/base44Client";
+import { cloudflare } from "@/api/cloudflareClient";
 import { filterExpensesForCycle, formatDisplayDate, getPreviousDate, toDateOnly } from "@/utils/cycleFilters";
 import { applyPaidStatusToNote, stripPaidStatusFromNote } from "@/utils/fixedSpendingPaid";
 import { Button } from "@/components/ui/button";
@@ -61,7 +61,7 @@ export default function SalaryCycles() {
 
     if (updatesById.size > 0) {
       await Promise.all(
-        Array.from(updatesById.entries()).map(([id, update]) => base44.entities.SalaryCycle.update(id, update))
+        Array.from(updatesById.entries()).map(([id, update]) => cloudflare.entities.SalaryCycle.update(id, update))
       );
     }
 
@@ -72,7 +72,7 @@ export default function SalaryCycles() {
 
   const load = async () => {
     setLoading(true);
-    const rawCycles = await base44.entities.SalaryCycle.list("-start_date", 50);
+    const rawCycles = await cloudflare.entities.SalaryCycle.list("-start_date", 50);
     const c = await normalizeCycleBoundaries(rawCycles);
     setCycles(c);
 
@@ -80,8 +80,8 @@ export default function SalaryCycles() {
     const t = {};
     await Promise.all(c.map(async (cy) => {
       const [fixed, expenses] = await Promise.all([
-        base44.entities.FixedSpending.filter({ salary_cycle_id: cy.id }),
-        base44.entities.Expense.filter({ salary_cycle_id: cy.id }),
+        cloudflare.entities.FixedSpending.filter({ salary_cycle_id: cy.id }),
+        cloudflare.entities.Expense.filter({ salary_cycle_id: cy.id }),
       ]);
       const cycleExpenses = filterExpensesForCycle(expenses, cy);
       t[cy.id] = {
@@ -114,7 +114,7 @@ export default function SalaryCycles() {
 
       // If this is a backfilled/previous cycle, do not make it active.
       // Only the latest salary cycle should be active.
-      const newCycle = await base44.entities.SalaryCycle.create({
+      const newCycle = await cloudflare.entities.SalaryCycle.create({
         start_date: newStartDate,
         end_date: newEndDate,
         salary_amount: salaryAmount,
@@ -124,7 +124,7 @@ export default function SalaryCycles() {
       // Close or resize the cycle immediately before the new start date.
       // Example: existing active 27 Apr, new salary 20 May => 27 Apr ends 19 May.
       if (previousCycle) {
-        await base44.entities.SalaryCycle.update(previousCycle.id, {
+        await cloudflare.entities.SalaryCycle.update(previousCycle.id, {
           status: "closed",
           end_date: getPreviousDate(newStartDate),
         });
@@ -134,16 +134,16 @@ export default function SalaryCycles() {
       if (isLatestCycle) {
         const olderActiveCycles = cycles.filter((cycle) => cycle.status === "active" && cycle.id !== newCycle.id);
         await Promise.all(
-          olderActiveCycles.map((cycle) => base44.entities.SalaryCycle.update(cycle.id, { status: "closed" }))
+          olderActiveCycles.map((cycle) => cloudflare.entities.SalaryCycle.update(cycle.id, { status: "closed" }))
         );
       }
 
       // Copy repeated fixed spending only when creating the next/latest cycle.
       if (isLatestCycle && previousCycle) {
-        const prevFixed = await base44.entities.FixedSpending.filter({ salary_cycle_id: previousCycle.id });
+        const prevFixed = await cloudflare.entities.FixedSpending.filter({ salary_cycle_id: previousCycle.id });
         const repeated = prevFixed.filter((f) => f.repeat_every_cycle);
         if (repeated.length > 0) {
-          await base44.entities.FixedSpending.bulkCreate(
+          await cloudflare.entities.FixedSpending.bulkCreate(
             repeated.map((f) => ({
               salary_cycle_id: newCycle.id,
               name: f.name,
@@ -182,7 +182,7 @@ export default function SalaryCycles() {
 
     setUpdatingSalary(true);
     try {
-      await base44.entities.SalaryCycle.update(editSalaryTarget.id, {
+      await cloudflare.entities.SalaryCycle.update(editSalaryTarget.id, {
         salary_amount: nextSalaryAmount,
       });
       setEditSalaryTarget(null);
@@ -199,16 +199,16 @@ export default function SalaryCycles() {
     setDeleting(true);
     try {
       const [fixedItems, expenseItems] = await Promise.all([
-        base44.entities.FixedSpending.filter({ salary_cycle_id: deleteTarget.id }),
-        base44.entities.Expense.filter({ salary_cycle_id: deleteTarget.id }),
+        cloudflare.entities.FixedSpending.filter({ salary_cycle_id: deleteTarget.id }),
+        cloudflare.entities.Expense.filter({ salary_cycle_id: deleteTarget.id }),
       ]);
 
       await Promise.all([
-        ...fixedItems.map((item) => base44.entities.FixedSpending.delete(item.id)),
-        ...expenseItems.map((item) => base44.entities.Expense.delete(item.id)),
+        ...fixedItems.map((item) => cloudflare.entities.FixedSpending.delete(item.id)),
+        ...expenseItems.map((item) => cloudflare.entities.Expense.delete(item.id)),
       ]);
 
-      await base44.entities.SalaryCycle.delete(deleteTarget.id);
+      await cloudflare.entities.SalaryCycle.delete(deleteTarget.id);
       setDeleteTarget(null);
       await load();
     } finally {

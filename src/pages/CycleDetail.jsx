@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { base44 } from "@/api/base44Client";
+import { cloudflare } from "@/api/cloudflareClient";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft, Plus, ReceiptText, PiggyBank } from "lucide-react";
@@ -18,11 +18,11 @@ export default function CycleDetail() {
 
   useEffect(() => {
     (async () => {
-      const c = await base44.entities.SalaryCycle.get(cycleId);
+      const c = await cloudflare.entities.SalaryCycle.get(cycleId);
       setCycle(c);
       const [f, e] = await Promise.all([
-        base44.entities.FixedSpending.filter({ salary_cycle_id: cycleId }),
-        base44.entities.Expense.filter({ salary_cycle_id: cycleId }, "-date"),
+        cloudflare.entities.FixedSpending.filter({ salary_cycle_id: cycleId }),
+        cloudflare.entities.Expense.filter({ salary_cycle_id: cycleId }, "-date"),
       ]);
       setFixed(f);
       setExpenses(filterExpensesForCycle(e, c));

@@ -1,5 +1,5 @@
 import { useMemo, useState, useEffect } from "react";
-import { base44 } from "@/api/base44Client";
+import { cloudflare } from "@/api/cloudflareClient";
 import { filterExpensesForCycle, formatDisplayDate, isDateInSalaryCycle } from "@/utils/cycleFilters";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -294,15 +294,15 @@ export default function Expenses() {
     let selectedCycle = null;
 
     if (selectedCycleId) {
-      selectedCycle = await base44.entities.SalaryCycle.get(selectedCycleId);
+      selectedCycle = await cloudflare.entities.SalaryCycle.get(selectedCycleId);
     } else {
-      const cycles = await base44.entities.SalaryCycle.filter({ status: "active" }, "-start_date", 1);
+      const cycles = await cloudflare.entities.SalaryCycle.filter({ status: "active" }, "-start_date", 1);
       selectedCycle = cycles[0] || null;
     }
 
     if (selectedCycle) {
       setCycle(selectedCycle);
-      const e = await base44.entities.Expense.filter({ salary_cycle_id: selectedCycle.id }, "-date");
+      const e = await cloudflare.entities.Expense.filter({ salary_cycle_id: selectedCycle.id }, "-date");
       setExpenses(filterExpensesForCycle(e, selectedCycle));
     } else {
       setCycle(null);
@@ -321,9 +321,9 @@ export default function Expenses() {
 
     setSaving(true);
     if (editing) {
-      await base44.entities.Expense.update(editing.id, data);
+      await cloudflare.entities.Expense.update(editing.id, data);
     } else {
-      await base44.entities.Expense.create({ ...data, salary_cycle_id: cycle.id });
+      await cloudflare.entities.Expense.create({ ...data, salary_cycle_id: cycle.id });
     }
     setSheetOpen(false);
     setEditing(null);
@@ -332,7 +332,7 @@ export default function Expenses() {
   };
 
   const handleDelete = async () => {
-    await base44.entities.Expense.delete(deleteId);
+    await cloudflare.entities.Expense.delete(deleteId);
     setDeleteId(null);
     await load();
   };

@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { base44 } from "@/api/base44Client";
+import { cloudflare } from "@/api/cloudflareClient";
 import { Button } from "@/components/ui/button";
 import { Plus, ArrowRightLeft, Info } from "lucide-react";
 import MobileLayout from "../components/MobileLayout";
@@ -16,13 +16,13 @@ export default function Dashboard() {
 
   useEffect(() => {
     (async () => {
-      const cycles = await base44.entities.SalaryCycle.filter({ status: "active" }, "-start_date", 1);
+      const cycles = await cloudflare.entities.SalaryCycle.filter({ status: "active" }, "-start_date", 1);
       if (cycles.length > 0) {
         const c = cycles[0];
         setCycle(c);
         const [f, e] = await Promise.all([
-          base44.entities.FixedSpending.filter({ salary_cycle_id: c.id }),
-          base44.entities.Expense.filter({ salary_cycle_id: c.id }),
+          cloudflare.entities.FixedSpending.filter({ salary_cycle_id: c.id }),
+          cloudflare.entities.Expense.filter({ salary_cycle_id: c.id }),
         ]);
         setFixed(f);
         setExpenses(filterExpensesForCycle(e, c));

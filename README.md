@@ -1,39 +1,61 @@
-**Welcome to your Base44 project** 
+# Salary Cycle Tracker — Cloudflare version
 
-**About**
+This repo has been migrated away from Base44.
 
-View and Edit  your app on [Base44.com](http://Base44.com) 
+The app now uses:
 
-This project contains everything you need to run your app locally.
+- React + Vite for the mobile web UI
+- Cloudflare Worker for the `/api/*` backend
+- Cloudflare D1 for saved data
+- Cloudflare Static Assets for the built React files
 
-**Edit the code in your local development environment**
+## Cloudflare deploy settings
 
-Any change pushed to the repo will also be reflected in the Base44 Builder.
+When deploying from GitHub in Cloudflare, use:
 
-**Prerequisites:** 
-
-1. Clone the repository using the project's Git URL 
-2. Navigate to the project directory
-3. Install dependencies: `npm install`
-4. Create an `.env.local` file and set the right environment variables
-
-```
-VITE_BASE44_APP_ID=your_app_id
-VITE_BASE44_APP_BASE_URL=your_backend_url
-
-e.g.
-VITE_BASE44_APP_ID=cbef744a8545c389ef439ea6
-VITE_BASE44_APP_BASE_URL=https://my-to-do-list-81bfaad7.base44.app
+```txt
+Build command: npm run build
+Deploy command: npx wrangler deploy
 ```
 
-Run the app: `npm run dev`
+The Worker serves the React app from `dist` and handles API routes under `/api/*`.
 
-**Publish your changes**
+## Create the D1 database
 
-Open [Base44.com](http://Base44.com) and click on Publish.
+From the project folder, run:
 
-**Docs & Support**
+```bash
+npx wrangler@latest d1 create salary-cycle-tracker-db
+```
 
-Documentation: [https://docs.base44.com/Integrations/Using-GitHub](https://docs.base44.com/Integrations/Using-GitHub)
+Cloudflare will return a `database_id`. Copy it into `wrangler.toml` here:
 
-Support: [https://app.base44.com/support](https://app.base44.com/support)
+```toml
+database_id = "REPLACE_WITH_YOUR_D1_DATABASE_ID"
+```
+
+## Apply the database tables
+
+After updating `wrangler.toml`, run:
+
+```bash
+npx wrangler d1 migrations apply salary-cycle-tracker-db --remote
+```
+
+This creates these D1 tables:
+
+- `salary_cycles`
+- `expenses`
+- `fixed_spending`
+
+## Deploy
+
+```bash
+npm install
+npm run build
+npx wrangler deploy
+```
+
+## Important
+
+This version is public-link style, same as the current app. Anyone with the live link can open and edit the same data. Add Cloudflare Access or custom login later if you want it private.
