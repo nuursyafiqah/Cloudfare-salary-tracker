@@ -200,7 +200,7 @@ export default function FixedSpending() {
 
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-1.5 leading-tight">
-                    <p className={`text-sm font-medium truncate ${i.is_paid ? "line-through text-muted-foreground" : ""}`}>{i.name}</p>
+                    <p className="text-sm font-medium truncate">{i.name}</p>
                     {i.repeat_every_cycle && <Repeat className="w-3 h-3 text-emerald-500 shrink-0" />}
                     {i.is_paid && <Badge className="h-5 px-1.5 text-[10px] bg-emerald-100 text-emerald-700 hover:bg-emerald-100">Paid</Badge>}
                   </div>
