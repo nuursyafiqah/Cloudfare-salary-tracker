@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { base44 } from "@/api/base44Client";
 import { filterExpensesForCycle, formatDisplayDate, getPreviousDate, toDateOnly } from "@/utils/cycleFilters";
+import { applyPaidStatusToNote, stripPaidStatusFromNote } from "@/utils/fixedSpendingPaid";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -150,7 +151,7 @@ export default function SalaryCycles() {
               category: f.category,
               repeat_every_cycle: true,
               is_paid: false,
-              note: f.note,
+              note: applyPaidStatusToNote(stripPaidStatusFromNote(f.note), false),
             }))
           );
         }

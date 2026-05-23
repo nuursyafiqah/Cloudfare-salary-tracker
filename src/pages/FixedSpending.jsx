@@ -7,6 +7,7 @@ import { Plus, Pencil, Trash2, Repeat } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
 import { formatDisplayDate } from "@/utils/cycleFilters";
+import { applyPaidStatusToNote, getPaidStatusFromNote, normalizeFixedSpendingItems, stripPaidStatusFromNote } from "@/utils/fixedSpendingPaid";
 import MobileLayout from "../components/MobileLayout";
 import FixedSpendingForm from "../components/FixedSpendingForm";
 
@@ -36,12 +37,20 @@ const migrateLegacyPaidStorage = async (fixedItems = []) => {
 
   const migratedItems = fixedItems.map((item) => {
     if (!Object.prototype.hasOwnProperty.call(paidMap, item.id)) return item;
-    return { ...item, is_paid: !!paidMap[item.id] };
+    const nextPaid = !!paidMap[item.id];
+    return {
+      ...item,
+      is_paid: nextPaid,
+      note: applyPaidStatusToNote(item.note, nextPaid),
+    };
   });
 
   const updates = migratedItems
     .filter((item) => Object.prototype.hasOwnProperty.call(paidMap, item.id))
-    .map((item) => base44.entities.FixedSpending.update(item.id, { is_paid: !!item.is_paid }));
+    .map((item) => base44.entities.FixedSpending.update(item.id, {
+      is_paid: !!item.is_paid,
+      note: item.note,
+    }));
 
   try {
     await Promise.all(updates);
@@ -53,11 +62,22 @@ const migrateLegacyPaidStorage = async (fixedItems = []) => {
   return migratedItems;
 };
 
-const normalizeFixedItems = (fixedItems = []) => {
-  return fixedItems.map((item) => ({
-    ...item,
-    is_paid: !!item.is_paid,
-  }));
+const syncMissingPaidMarkers = async (fixedItems = []) => {
+  const itemsMissingMarker = fixedItems.filter((item) => getPaidStatusFromNote(item.note) === null && item.is_paid === true);
+  if (itemsMissingMarker.length === 0) return;
+
+  try {
+    await Promise.all(
+      itemsMissingMarker.map((item) =>
+        base44.entities.FixedSpending.update(item.id, {
+          is_paid: true,
+          note: applyPaidStatusToNote(item.note, true),
+        })
+      )
+    );
+  } catch (error) {
+    console.error("Failed to sync paid status marker", error);
+  }
 };
 
 export default function FixedSpending() {
@@ -97,7 +117,8 @@ export default function FixedSpending() {
       setCycle(selectedCycle);
       const f = await base44.entities.FixedSpending.filter({ salary_cycle_id: selectedCycle.id });
       const migratedFixedItems = await migrateLegacyPaidStorage(f);
-      setItems(normalizeFixedItems(migratedFixedItems));
+      await syncMissingPaidMarkers(migratedFixedItems);
+      setItems(normalizeFixedSpendingItems(migratedFixedItems));
     } else {
       setCycle(null);
       setItems([]);
@@ -111,12 +132,14 @@ export default function FixedSpending() {
       await base44.entities.FixedSpending.update(editing.id, {
         ...data,
         is_paid: !!editing.is_paid,
+        note: applyPaidStatusToNote(data.note, !!editing.is_paid),
       });
     } else {
       await base44.entities.FixedSpending.create({
         ...data,
         salary_cycle_id: cycle.id,
         is_paid: false,
+        note: applyPaidStatusToNote(data.note, false),
       });
     }
     setSheetOpen(false);
@@ -140,7 +163,10 @@ export default function FixedSpending() {
     setItems((prev) => prev.map((fixedItem) => (fixedItem.id === item.id ? { ...fixedItem, is_paid: nextPaid } : fixedItem)));
 
     try {
-      await base44.entities.FixedSpending.update(item.id, { is_paid: nextPaid });
+      await base44.entities.FixedSpending.update(item.id, {
+        is_paid: nextPaid,
+        note: applyPaidStatusToNote(item.note, nextPaid),
+      });
     } catch (error) {
       console.error("Failed to save paid status", error);
       setItems((prev) => prev.map((fixedItem) => (fixedItem.id === item.id ? { ...fixedItem, is_paid: item.is_paid } : fixedItem)));
@@ -222,7 +248,7 @@ export default function FixedSpending() {
                       {i.repeat_every_cycle && <Repeat className="w-3 h-3 text-emerald-500 shrink-0" />}
                       {i.is_paid && <Badge className="h-5 px-1.5 text-[10px] bg-emerald-100 text-emerald-700 hover:bg-emerald-100">Paid</Badge>}
                     </div>
-                    <p className="text-[11px] leading-tight text-muted-foreground mt-0.5">{i.category}{i.note ? ` · ${i.note}` : ""}</p>
+                    <p className="text-[11px] leading-tight text-muted-foreground mt-0.5">{i.category}{stripPaidStatusFromNote(i.note) ? ` · ${stripPaidStatusFromNote(i.note)}` : ""}</p>
                   </div>
                   <p className={`text-sm font-semibold shrink-0 ml-1 ${i.is_paid ? "text-emerald-600" : "text-amber-600"}`}>⃁ {i.amount?.toFixed(2)}</p>
                   <div className="flex gap-0.5 shrink-0">
