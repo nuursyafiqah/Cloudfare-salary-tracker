@@ -10,6 +10,54 @@ import { formatDisplayDate } from "@/utils/cycleFilters";
 import MobileLayout from "../components/MobileLayout";
 import FixedSpendingForm from "../components/FixedSpendingForm";
 
+const PAID_STORAGE_KEY = "salary-cycle-fixed-spending-paid-v1";
+
+const readPaidStorage = () => {
+  try {
+    return JSON.parse(window.localStorage.getItem(PAID_STORAGE_KEY) || "{}");
+  } catch {
+    return {};
+  }
+};
+
+const writePaidStorage = (itemId, isPaid) => {
+  try {
+    const paidMap = readPaidStorage();
+    paidMap[itemId] = !!isPaid;
+    window.localStorage.setItem(PAID_STORAGE_KEY, JSON.stringify(paidMap));
+  } catch {
+    // localStorage may be unavailable in some private browsers. Database save still runs.
+  }
+};
+
+const removePaidStorage = (itemId) => {
+  try {
+    const paidMap = readPaidStorage();
+    delete paidMap[itemId];
+    window.localStorage.setItem(PAID_STORAGE_KEY, JSON.stringify(paidMap));
+  } catch {
+    // Ignore storage cleanup errors.
+  }
+};
+
+const mergePaidStorage = (fixedItems = []) => {
+  const paidMap = readPaidStorage();
+  return fixedItems.map((item) => ({
+    ...item,
+    is_paid: Object.prototype.hasOwnProperty.call(paidMap, item.id) ? paidMap[item.id] : !!item.is_paid,
+  }));
+};
+
+const buildFixedSpendingPayload = (item, nextPaid) => ({
+  salary_cycle_id: item.salary_cycle_id,
+  name: item.name,
+  amount: item.amount,
+  category: item.category,
+  repeat_every_cycle: !!item.repeat_every_cycle,
+  is_paid: !!nextPaid,
+  note: item.note || "",
+});
+
 export default function FixedSpending() {
   const [cycle, setCycle] = useState(null);
   const [items, setItems] = useState([]);
@@ -45,7 +93,7 @@ export default function FixedSpending() {
     if (selectedCycle) {
       setCycle(selectedCycle);
       const f = await base44.entities.FixedSpending.filter({ salary_cycle_id: selectedCycle.id });
-      setItems(f);
+      setItems(mergePaidStorage(f));
     } else {
       setCycle(null);
       setItems([]);
@@ -68,19 +116,23 @@ export default function FixedSpending() {
 
   const handleDelete = async () => {
     await base44.entities.FixedSpending.delete(deleteId);
+    removePaidStorage(deleteId);
     setDeleteId(null);
     await load();
   };
 
   const togglePaid = async (item) => {
     const nextPaid = !item.is_paid;
+
+    // Save immediately in browser storage so the tick remains after refresh.
+    // Database update below keeps the value in Base44 when the entity field is available.
+    writePaidStorage(item.id, nextPaid);
     setItems((prev) => prev.map((fixedItem) => (fixedItem.id === item.id ? { ...fixedItem, is_paid: nextPaid } : fixedItem)));
 
     try {
-      await base44.entities.FixedSpending.update(item.id, { is_paid: nextPaid });
+      await base44.entities.FixedSpending.update(item.id, buildFixedSpendingPayload(item, nextPaid));
     } catch (error) {
-      setItems((prev) => prev.map((fixedItem) => (fixedItem.id === item.id ? item : fixedItem)));
-      console.error("Failed to update paid status", error);
+      console.error("Failed to update paid status in database. Local paid tick is still saved for this device.", error);
     }
   };
 
