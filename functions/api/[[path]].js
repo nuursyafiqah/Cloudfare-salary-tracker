@@ -65,10 +65,10 @@ async function ensureSchema(env) {
         await env.DB.prepare(statement).run();
       }
 
+      // Keep startup fast on Cloudflare Pages/Workers cold starts.
+      // Existing rows receive DEFAULT 0 when the column is added, so no full-table UPDATE is needed here.
       await ensureTableColumn(env, "fixed_spending", "is_paid", "INTEGER NOT NULL DEFAULT 0");
       await ensureTableColumn(env, "fixed_spending", "sort_order", "INTEGER NOT NULL DEFAULT 0");
-      await env.DB.prepare("UPDATE fixed_spending SET is_paid = 0 WHERE is_paid IS NULL").run();
-      await env.DB.prepare("UPDATE fixed_spending SET sort_order = 0 WHERE sort_order IS NULL").run();
       await env.DB.prepare("CREATE INDEX IF NOT EXISTS idx_fixed_spending_sort_order ON fixed_spending(sort_order)").run();
     })().catch((err) => {
       schemaReadyPromise = null;

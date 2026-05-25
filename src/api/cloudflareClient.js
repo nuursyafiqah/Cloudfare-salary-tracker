@@ -1,5 +1,5 @@
 // Cloudflare API client
-// Calls the Cloudflare Worker API, which stores data in D1.
+// Calls the Cloudflare Pages Functions / Worker API, which stores data in D1.
 
 const ENTITY_ROUTES = {
   SalaryCycle: "/api/salary-cycles",
@@ -7,9 +7,25 @@ const ENTITY_ROUTES = {
   FixedSpending: "/api/fixed-spending",
 };
 
-async function apiRequest(path, options = {}) {
+const API_TIMEOUT_MS = 30000;
+const GET_RETRY_DELAY_MS = 900;
+
+const sleep = (ms) => new Promise((resolve) => window.setTimeout(resolve, ms));
+
+function isRetryableError(error) {
+  const message = String(error?.message || "").toLowerCase();
+  return (
+    error?.name === "AbortError" ||
+    message.includes("took too long") ||
+    message.includes("failed to fetch") ||
+    message.includes("network") ||
+    message.includes("load failed")
+  );
+}
+
+async function apiRequestOnce(path, options = {}) {
   const controller = new AbortController();
-  const timeoutId = window.setTimeout(() => controller.abort(), 15000);
+  const timeoutId = window.setTimeout(() => controller.abort(), API_TIMEOUT_MS);
 
   let response;
   try {
@@ -23,7 +39,7 @@ async function apiRequest(path, options = {}) {
     });
   } catch (err) {
     if (err?.name === "AbortError") {
-      throw new Error("Cloudflare API took too long to respond. Please refresh and try again.");
+      throw new Error("Cloudflare API took too long to respond. Please retry in a moment.");
     }
     throw err;
   } finally {
@@ -41,6 +57,24 @@ async function apiRequest(path, options = {}) {
   }
 
   return payload;
+}
+
+async function apiRequest(path, options = {}) {
+  const method = String(options.method || "GET").toUpperCase();
+  const maxAttempts = method === "GET" ? 2 : 1;
+  let lastError;
+
+  for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+    try {
+      return await apiRequestOnce(path, options);
+    } catch (error) {
+      lastError = error;
+      if (attempt >= maxAttempts || !isRetryableError(error)) break;
+      await sleep(GET_RETRY_DELAY_MS);
+    }
+  }
+
+  throw lastError;
 }
 
 function withQuery(route, params = {}) {

@@ -37,6 +37,36 @@ import MobileLayout from "../components/MobileLayout";
 import FixedSpendingForm from "../components/FixedSpendingForm";
 
 const LEGACY_PAID_STORAGE_KEY = "salary-cycle-fixed-spending-paid-v1";
+const FIXED_SPENDING_CACHE_KEY = "salary-cycle-fixed-spending-last-good-v2";
+
+const readFixedSpendingCache = (cycleId = null) => {
+  try {
+    const raw = window.localStorage.getItem(FIXED_SPENDING_CACHE_KEY);
+    if (!raw) return null;
+    const snapshot = JSON.parse(raw);
+    if (!snapshot?.cycle || !Array.isArray(snapshot?.items)) return null;
+    if (cycleId && String(snapshot.cycle.id) !== String(cycleId)) return null;
+    return snapshot;
+  } catch {
+    return null;
+  }
+};
+
+const writeFixedSpendingCache = (cycle, items = []) => {
+  try {
+    if (!cycle) return;
+    window.localStorage.setItem(
+      FIXED_SPENDING_CACHE_KEY,
+      JSON.stringify({
+        cycle,
+        items,
+        savedAt: new Date().toISOString(),
+      })
+    );
+  } catch {
+    // Ignore private-browser storage limitations.
+  }
+};
 
 const readLegacyPaidStorage = () => {
   try {
@@ -191,6 +221,7 @@ export default function FixedSpending() {
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState("");
+  const [loadWarning, setLoadWarning] = useState("");
   const [saving, setSaving] = useState(false);
   const [savingOrder, setSavingOrder] = useState(false);
   const [selectedSwapId, setSelectedSwapId] = useState(null);
@@ -237,8 +268,17 @@ export default function FixedSpending() {
   };
 
   const load = async () => {
-    setLoading(true);
+    const cachedSnapshot = readFixedSpendingCache(selectedCycleId);
+    const hasCachedSnapshot = !!cachedSnapshot?.cycle;
+
+    setLoading(!hasCachedSnapshot);
     setLoadError("");
+    setLoadWarning("");
+
+    if (hasCachedSnapshot) {
+      setCycle(cachedSnapshot.cycle);
+      setItems(prepareFixedSpendingItems(cachedSnapshot.items));
+    }
 
     try {
       let selectedCycle = null;
@@ -253,13 +293,16 @@ export default function FixedSpending() {
       if (selectedCycle) {
         setCycle(selectedCycle);
         const fixedItems = await loadFixedSpendingItems(selectedCycle.id);
-        setItems(prepareFixedSpendingItems(fixedItems));
+        const preparedItems = prepareFixedSpendingItems(fixedItems);
+        setItems(preparedItems);
+        writeFixedSpendingCache(selectedCycle, fixedItems);
 
         // Do legacy cleanup in the background so the page does not stay stuck on the loader.
         migrateLegacyPaidStorage(fixedItems)
           .then(async (migratedFixedItems) => {
             await syncMissingPaidMarkers(migratedFixedItems);
             setItems(prepareFixedSpendingItems(migratedFixedItems));
+            writeFixedSpendingCache(selectedCycle, migratedFixedItems);
           })
           .catch((error) => {
             console.error("Fixed spending background sync failed", error);
@@ -270,8 +313,12 @@ export default function FixedSpending() {
       }
     } catch (error) {
       console.error("Failed to load fixed spending", error);
-      setLoadError(error?.message || "Fixed Spending could not be loaded. Please try again.");
-      setItems([]);
+      if (hasCachedSnapshot) {
+        setLoadWarning("Showing saved data. Cloudflare is slow right now, but you can tap Retry to refresh.");
+      } else {
+        setLoadError(error?.message || "Fixed Spending could not be loaded. Please try again.");
+        setItems([]);
+      }
     } finally {
       setLoading(false);
     }
@@ -324,6 +371,8 @@ export default function FixedSpending() {
           )
         );
       }
+
+      writeFixedSpendingCache(cycle, nextItems);
     } catch (error) {
       console.error("Failed to save fixed spending custom order", error);
       setItems(previousItems);
@@ -525,7 +574,7 @@ export default function FixedSpending() {
             </section>
           )}
 
-          {!cycle && !loading && (
+          {!cycle && !loading && !loadError && (
             <p className="rounded-3xl border border-slate-200 bg-white p-6 text-center text-sm text-slate-500 shadow-sm">
               No salary cycle selected. Create one first from the Dashboard or open one from Salary Cycles.
             </p>
@@ -563,6 +612,15 @@ export default function FixedSpending() {
                 <span className="inline-flex items-center gap-1">
                   This Month <ChevronDown className="h-3 w-3" />
                 </span>
+              </button>
+            </div>
+          )}
+
+          {loadWarning && (
+            <div className="flex items-center justify-between gap-2 rounded-2xl border border-amber-100 bg-amber-50/90 px-3 py-2 text-[11px] leading-4 text-amber-800 shadow-sm">
+              <span>{loadWarning}</span>
+              <button type="button" className="shrink-0 rounded-full bg-white/80 px-2 py-1 text-[10px] font-medium text-amber-700" onClick={load}>
+                Retry
               </button>
             </div>
           )}
