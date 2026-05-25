@@ -124,7 +124,111 @@ const toAmount = (value) => {
 const formatMoney = (value) =>
   `⃁ ${toAmount(value).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
+const CATEGORY_VISUALS = {
+  Rent: {
+    Icon: Home,
+    card: "border-blue-100 bg-gradient-to-r from-blue-50/95 via-white to-white",
+    wrap: "bg-blue-100/80",
+    icon: "text-blue-600",
+    pill: "bg-blue-100/80 text-blue-700",
+    amount: "text-blue-700",
+  },
+  Loan: {
+    Icon: Building2,
+    card: "border-sky-100 bg-gradient-to-r from-sky-50/95 via-white to-white",
+    wrap: "bg-sky-100/80",
+    icon: "text-sky-600",
+    pill: "bg-sky-100/80 text-sky-700",
+    amount: "text-sky-700",
+  },
+  Hutang: {
+    Icon: HandCoins,
+    card: "border-amber-100 bg-gradient-to-r from-amber-50/95 via-white to-white",
+    wrap: "bg-amber-100/80",
+    icon: "text-amber-600",
+    pill: "bg-amber-100/80 text-amber-700",
+    amount: "text-amber-700",
+  },
+  "Pika & (mak abah)": {
+    Icon: HandCoins,
+    card: "border-pink-100 bg-gradient-to-r from-pink-50/95 via-white to-white",
+    wrap: "bg-pink-100/80",
+    icon: "text-pink-600",
+    pill: "bg-pink-100/80 text-pink-700",
+    amount: "text-pink-700",
+  },
+  Anak: {
+    Icon: HandCoins,
+    card: "border-purple-100 bg-gradient-to-r from-purple-50/95 via-white to-white",
+    wrap: "bg-purple-100/80",
+    icon: "text-purple-600",
+    pill: "bg-purple-100/80 text-purple-700",
+    amount: "text-purple-700",
+  },
+  "Loan ASB (Saving)": {
+    Icon: Landmark,
+    card: "border-yellow-100 bg-gradient-to-r from-yellow-50/95 via-white to-white",
+    wrap: "bg-yellow-100/80",
+    icon: "text-yellow-600",
+    pill: "bg-yellow-100/80 text-yellow-700",
+    amount: "text-yellow-700",
+  },
+  "Loan Rumah": {
+    Icon: Home,
+    card: "border-indigo-100 bg-gradient-to-r from-indigo-50/95 via-white to-white",
+    wrap: "bg-indigo-100/80",
+    icon: "text-indigo-600",
+    pill: "bg-indigo-100/80 text-indigo-700",
+    amount: "text-indigo-700",
+  },
+  Internet: {
+    Icon: Wifi,
+    card: "border-violet-100 bg-gradient-to-r from-violet-50/95 via-white to-white",
+    wrap: "bg-violet-100/80",
+    icon: "text-violet-600",
+    pill: "bg-violet-100/80 text-violet-700",
+    amount: "text-violet-700",
+  },
+  Insurance: {
+    Icon: ShieldCheck,
+    card: "border-emerald-100 bg-gradient-to-r from-emerald-50/95 via-white to-white",
+    wrap: "bg-emerald-100/80",
+    icon: "text-emerald-600",
+    pill: "bg-emerald-100/80 text-emerald-700",
+    amount: "text-emerald-700",
+  },
+  Utilities: {
+    Icon: Zap,
+    card: "border-orange-100 bg-gradient-to-r from-orange-50/95 via-white to-white",
+    wrap: "bg-orange-100/80",
+    icon: "text-orange-600",
+    pill: "bg-orange-100/80 text-orange-700",
+    amount: "text-orange-700",
+  },
+  Subscription: {
+    Icon: Repeat,
+    card: "border-fuchsia-100 bg-gradient-to-r from-fuchsia-50/95 via-white to-white",
+    wrap: "bg-fuchsia-100/80",
+    icon: "text-fuchsia-600",
+    pill: "bg-fuchsia-100/80 text-fuchsia-700",
+    amount: "text-fuchsia-700",
+  },
+  Other: {
+    Icon: Wallet,
+    card: "border-slate-100 bg-gradient-to-r from-slate-50/95 via-white to-white",
+    wrap: "bg-slate-100/80",
+    icon: "text-slate-600",
+    pill: "bg-slate-100/80 text-slate-700",
+    amount: "text-slate-700",
+  },
+};
+
 const getCategoryVisual = (item = {}) => {
+  const normalizedCategory = normalizeFixedSpendingCategory(item.category);
+  if (CATEGORY_VISUALS[normalizedCategory]) {
+    return CATEGORY_VISUALS[normalizedCategory];
+  }
+
   const category = String(item.category || "").toLowerCase();
   const name = String(item.name || "").toLowerCase();
   const text = `${category} ${name}`;
@@ -134,14 +238,14 @@ const getCategoryVisual = (item = {}) => {
     text.includes("wifi") ||
     text.includes("wi-fi")
   ) {
-    return { Icon: Wifi, wrap: "bg-violet-50", icon: "text-violet-500" };
+    return CATEGORY_VISUALS.Internet;
   }
   if (
     text.includes("electric") ||
     text.includes("utility") ||
     text.includes("utilities")
   ) {
-    return { Icon: Zap, wrap: "bg-orange-50", icon: "text-orange-500" };
+    return CATEGORY_VISUALS.Utilities;
   }
   if (
     text.includes("rent") ||
@@ -149,14 +253,10 @@ const getCategoryVisual = (item = {}) => {
     text.includes("housing") ||
     text.includes("apartment")
   ) {
-    return { Icon: Home, wrap: "bg-blue-50", icon: "text-blue-500" };
+    return text.includes("loan") ? CATEGORY_VISUALS["Loan Rumah"] : CATEGORY_VISUALS.Rent;
   }
   if (text.includes("insurance") || text.includes("insurans")) {
-    return {
-      Icon: ShieldCheck,
-      wrap: "bg-emerald-50",
-      icon: "text-emerald-600",
-    };
+    return CATEGORY_VISUALS.Insurance;
   }
   if (
     text.includes("phone") ||
@@ -164,7 +264,14 @@ const getCategoryVisual = (item = {}) => {
     text.includes("call") ||
     text.includes("stc")
   ) {
-    return { Icon: Phone, wrap: "bg-rose-50", icon: "text-rose-500" };
+    return {
+      Icon: Phone,
+      card: "border-rose-100 bg-gradient-to-r from-rose-50/95 via-white to-white",
+      wrap: "bg-rose-100/80",
+      icon: "text-rose-600",
+      pill: "bg-rose-100/80 text-rose-700",
+      amount: "text-rose-700",
+    };
   }
   if (
     text.includes("hutang") ||
@@ -173,7 +280,9 @@ const getCategoryVisual = (item = {}) => {
     text.includes("cimb") ||
     text.includes("rhb")
   ) {
-    return { Icon: Building2, wrap: "bg-sky-50", icon: "text-sky-600" };
+    return text.includes("asb")
+      ? CATEGORY_VISUALS["Loan ASB (Saving)"]
+      : CATEGORY_VISUALS.Loan;
   }
   if (
     text.includes("anak") ||
@@ -182,20 +291,29 @@ const getCategoryVisual = (item = {}) => {
     text.includes("mak") ||
     text.includes("abah")
   ) {
-    return { Icon: HandCoins, wrap: "bg-cyan-50", icon: "text-cyan-600" };
+    return text.includes("anak")
+      ? CATEGORY_VISUALS.Anak
+      : CATEGORY_VISUALS["Pika & (mak abah)"];
   }
   if (
     text.includes("fire") ||
     text.includes("leased") ||
     text.includes("furnish")
   ) {
-    return { Icon: Flame, wrap: "bg-red-50", icon: "text-red-500" };
+    return {
+      Icon: Flame,
+      card: "border-red-100 bg-gradient-to-r from-red-50/95 via-white to-white",
+      wrap: "bg-red-100/80",
+      icon: "text-red-600",
+      pill: "bg-red-100/80 text-red-700",
+      amount: "text-red-700",
+    };
   }
   if (text.includes("saving") || text.includes("deposit")) {
-    return { Icon: Landmark, wrap: "bg-yellow-50", icon: "text-yellow-600" };
+    return CATEGORY_VISUALS["Loan ASB (Saving)"];
   }
 
-  return { Icon: Wallet, wrap: "bg-emerald-50", icon: "text-emerald-600" };
+  return CATEGORY_VISUALS.Other;
 };
 
 const prepareFixedSpendingItems = (fixedItems = []) => {
@@ -798,7 +916,7 @@ export default function FixedSpending() {
             <div className="space-y-2">
               {visibleItems.map((i, index) => {
                 const isSavingPaid = savingPaidIds.includes(i.id);
-                const { Icon, wrap, icon } = getCategoryVisual(i);
+                const { Icon, card, wrap, icon, pill, amount } = getCategoryVisual(i);
                 const cleanNote = stripPaidStatusFromNote(i.note);
 
                 return (
@@ -807,13 +925,9 @@ export default function FixedSpending() {
                     data-fixed-spending-id={String(i.id)}
                     draggable={false}
                     onDragStart={(event) => event.preventDefault()}
-                    className={`group relative flex select-none items-center gap-2 rounded-[1.05rem] border bg-white/95 px-2.5 py-2 shadow-[0_8px_22px_rgba(15,23,42,0.055)] transition-[box-shadow,border-color,opacity,transform] duration-200 ${
-                      arrangeMode
-                        ? "border-emerald-200 ring-1 ring-emerald-50"
-                        : i.is_paid
-                          ? "border-emerald-100"
-                          : "border-orange-100"
-                    } ${isSavingPaid || savingOrder ? "opacity-70" : ""}`}
+                    className={`group relative flex select-none items-center gap-2 rounded-[1.05rem] border px-2.5 py-2 shadow-[0_8px_22px_rgba(15,23,42,0.055)] transition-[box-shadow,border-color,opacity,transform] duration-200 ${card} ${
+                      arrangeMode ? "ring-1 ring-emerald-200" : ""
+                    } ${i.is_paid ? "saturate-[0.92]" : ""} ${isSavingPaid || savingOrder ? "opacity-70" : ""}`}
                   >
                     <div
                       className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full ${wrap}`}
@@ -847,15 +961,23 @@ export default function FixedSpending() {
                           {i.is_paid ? "Paid" : "Due"}
                         </button>
                       </div>
-                      <p className="mt-0.5 truncate text-[11px] font-normal leading-4 text-slate-500">
-                        {i.category}
-                        {cleanNote ? ` · ${cleanNote}` : ""}
+                      <p className="mt-0.5 flex min-w-0 items-center gap-1.5 truncate text-[11px] font-normal leading-4 text-slate-500">
+                        <span
+                          className={`inline-flex shrink-0 items-center rounded-full px-1.5 py-0.5 text-[9px] font-medium leading-none ${pill}`}
+                        >
+                          {i.category || "Other"}
+                        </span>
+                        {cleanNote && (
+                          <span className="truncate text-slate-500">
+                            {cleanNote}
+                          </span>
+                        )}
                       </p>
                     </div>
 
                     <div className="ml-1 flex w-[84px] shrink-0 flex-col items-end gap-0.5">
                       <p
-                        className={`text-right text-[12px] font-medium leading-tight tabular-nums ${i.is_paid ? "text-emerald-700" : "text-orange-600"}`}
+                        className={`text-right text-[12px] font-medium leading-tight tabular-nums ${amount}`}
                       >
                         {formatMoney(i.amount)}
                       </p>
