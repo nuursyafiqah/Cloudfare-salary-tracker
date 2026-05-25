@@ -459,14 +459,14 @@ export default function FixedSpending() {
 
   return (
     <MobileLayout>
-      <div className="-mx-4 -mt-4 min-h-full bg-[radial-gradient(circle_at_top_left,rgba(16,185,129,0.12),transparent_32%),linear-gradient(180deg,#ffffff_0%,#f8fafc_45%,#f7f9fb_100%)] px-4 pb-5 pt-5">
-        <div className="space-y-5">
+      <div className="-mx-4 -mt-4 min-h-full bg-[radial-gradient(circle_at_top_left,rgba(16,185,129,0.12),transparent_32%),linear-gradient(180deg,#ffffff_0%,#f8fafc_45%,#f7f9fb_100%)] px-3 pb-4 pt-4 sm:px-4">
+        <div className="space-y-3">
           <header className="flex items-start justify-between gap-3">
             <div className="min-w-0 space-y-2">
-              <h1 className="text-2xl font-bold tracking-[0.04em] text-slate-950">Fixed Spending</h1>
+              <h1 className="text-xl font-semibold tracking-[0.02em] text-slate-950">Fixed Spending</h1>
               {cycle && (
-                <button type="button" className="inline-flex items-center gap-2 rounded-full text-sm font-medium text-slate-500">
-                  <CalendarDays className="h-4 w-4" />
+                <button type="button" className="inline-flex items-center gap-1.5 rounded-full text-xs font-normal text-slate-500">
+                  <CalendarDays className="h-3.5 w-3.5" />
                   <span>{formatDisplayDate(cycle.start_date)}</span>
                   <ChevronDown className="h-3.5 w-3.5" />
                 </button>
@@ -475,45 +475,45 @@ export default function FixedSpending() {
             {cycle && (
               <Button
                 size="sm"
-                className="h-12 shrink-0 rounded-full bg-emerald-600 px-5 text-sm font-semibold shadow-[0_14px_30px_rgba(5,150,105,0.28)] hover:bg-emerald-700"
+                className="h-9 shrink-0 rounded-full bg-emerald-600 px-3 text-xs font-medium shadow-[0_10px_22px_rgba(5,150,105,0.22)] hover:bg-emerald-700"
                 onClick={() => { setEditing(null); setSheetOpen(true); }}
               >
-                <Plus className="mr-1.5 h-4 w-4" /> Add
+                <Plus className="mr-1 h-3.5 w-3.5" /> Add
               </Button>
             )}
           </header>
 
           {cycle && (
-            <section className="overflow-hidden rounded-[1.75rem] border border-slate-200/80 bg-white/90 p-4 shadow-[0_20px_60px_rgba(15,23,42,0.08)] backdrop-blur">
-              <div className="flex items-center gap-4">
-                <div className="flex h-20 w-20 shrink-0 items-center justify-center rounded-full bg-emerald-50 shadow-inner">
-                  <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-emerald-500 text-white shadow-[0_14px_30px_rgba(16,185,129,0.28)]">
-                    <Wallet className="h-6 w-6" />
+            <section className="overflow-hidden rounded-[1.25rem] border border-slate-200/80 bg-white/90 p-3 shadow-[0_14px_36px_rgba(15,23,42,0.07)] backdrop-blur">
+              <div className="flex items-center gap-3">
+                <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-emerald-50 shadow-inner">
+                  <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-emerald-500 text-white shadow-[0_10px_20px_rgba(16,185,129,0.24)]">
+                    <Wallet className="h-4 w-4" />
                   </div>
                 </div>
 
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-2">
-                    <p className="text-sm font-bold text-slate-900">Total Fixed</p>
+                    <p className="text-xs font-medium text-slate-900">Total Fixed</p>
                     {cycle.status !== "active" && <Badge variant="secondary" className="bg-amber-100 text-amber-700 hover:bg-amber-100">Closed</Badge>}
                   </div>
-                  <p className="mt-1 text-2xl font-bold tracking-tight text-emerald-700">{formatMoney(total)}</p>
-                  <p className="mt-1.5 line-clamp-2 text-xs leading-5 text-slate-500">
+                  <p className="mt-0.5 text-lg font-medium tracking-tight text-emerald-700">{formatMoney(total)}</p>
+                  <p className="mt-1 line-clamp-2 text-[11px] leading-4 text-slate-500">
                     Track commitments and mark them paid so you never miss one due.
                   </p>
                   {canReorder && (
-                    <p className="mt-1 text-[11px] font-medium text-slate-400">
+                    <p className="mt-0.5 text-[10px] font-normal text-slate-400">
                       Hold the grip icon to custom sort. {savingOrder ? "Saving order..." : ""}
                     </p>
                   )}
                 </div>
 
-                <div className="w-[112px] shrink-0 overflow-hidden rounded-2xl border border-slate-100 bg-slate-50/80 text-xs font-semibold">
-                  <div className="flex items-center justify-between gap-2 border-b border-slate-100 bg-emerald-50 px-3 py-2 text-emerald-700">
+                <div className="w-[96px] shrink-0 overflow-hidden rounded-xl border border-slate-100 bg-slate-50/80 text-[10px] font-medium">
+                  <div className="flex items-center justify-between gap-2 border-b border-slate-100 bg-emerald-50 px-2 py-1.5 text-emerald-700">
                     <span>Paid:</span>
                     <span>{formatMoney(paidTotal)}</span>
                   </div>
-                  <div className="flex items-center justify-between gap-2 bg-orange-50 px-3 py-2 text-orange-600">
+                  <div className="flex items-center justify-between gap-2 bg-orange-50 px-2 py-1.5 text-orange-600">
                     <span>Due:</span>
                     <span>{formatMoney(dueTotal)}</span>
                   </div>
@@ -529,8 +529,8 @@ export default function FixedSpending() {
           )}
 
           {cycle && (
-            <div className="flex items-center gap-2">
-              <div className="grid min-w-0 flex-1 grid-cols-3 gap-2">
+            <div className="flex items-center gap-1.5">
+              <div className="grid min-w-0 flex-1 grid-cols-3 gap-1.5">
                 {filters.map((filter) => {
                   const active = statusFilter === filter.key;
                   return (
@@ -539,7 +539,7 @@ export default function FixedSpending() {
                       type="button"
                       onClick={() => setStatusFilter(filter.key)}
                       aria-pressed={active}
-                      className={`h-11 rounded-xl border px-2 text-xs font-semibold transition-all ${
+                      className={`h-9 rounded-xl border px-1.5 text-[11px] font-medium transition-all ${
                         active
                           ? "border-emerald-100 bg-emerald-50 text-emerald-700 shadow-sm"
                           : "border-slate-100 bg-white/80 text-slate-500 shadow-sm hover:bg-slate-50"
@@ -555,19 +555,19 @@ export default function FixedSpending() {
               </div>
               <button
                 type="button"
-                className="h-11 shrink-0 rounded-xl border border-slate-200 bg-white px-3 text-xs font-semibold text-slate-600 shadow-sm"
+                className="h-9 shrink-0 rounded-xl border border-slate-200 bg-white px-2 text-[11px] font-medium text-slate-600 shadow-sm"
               >
-                <span className="inline-flex items-center gap-1.5">
-                  This Month <ChevronDown className="h-3.5 w-3.5" />
+                <span className="inline-flex items-center gap-1">
+                  This Month <ChevronDown className="h-3 w-3" />
                 </span>
               </button>
             </div>
           )}
 
           {loading ? (
-            <div className="space-y-3 py-2">
+            <div className="space-y-2 py-1">
               {[1, 2, 3, 4].map((key) => (
-                <div key={key} className="h-20 animate-pulse rounded-[1.5rem] border border-slate-100 bg-white/80 shadow-sm" />
+                <div key={key} className="h-16 animate-pulse rounded-[1rem] border border-slate-100 bg-white/80 shadow-sm" />
               ))}
             </div>
           ) : loadError ? (
@@ -594,7 +594,7 @@ export default function FixedSpending() {
               No {statusFilter} fixed spending item found.
             </div>
           ) : (
-            <div ref={listRef} className="space-y-2.5">
+            <div ref={listRef} className="space-y-2">
               {filteredItems.map((i) => {
                 const isSavingPaid = savingPaidIds.includes(i.id);
                 const isDragging = String(draggingId) === String(i.id);
@@ -605,7 +605,7 @@ export default function FixedSpending() {
                   <div
                     key={i.id}
                     data-fixed-spending-id={String(i.id)}
-                    className={`group flex items-center gap-2.5 rounded-[1.35rem] border bg-white/95 px-3 py-3 shadow-[0_10px_30px_rgba(15,23,42,0.06)] transition-all ${
+                    className={`group flex items-center gap-1.5 rounded-[1.05rem] border bg-white/95 px-2 py-2 shadow-[0_8px_22px_rgba(15,23,42,0.055)] transition-all ${
                       i.is_paid ? "border-emerald-100" : "border-orange-100"
                     } ${isSavingPaid || savingOrder ? "opacity-70" : ""} ${isDragging && dragActive ? "shadow-xl scale-[1.01] ring-2 ring-emerald-200 z-10" : ""}`}
                   >
@@ -615,29 +615,29 @@ export default function FixedSpending() {
                       onPointerMove={handleDragMove}
                       onPointerUp={finishDrag}
                       onPointerCancel={finishDrag}
-                      className={`flex h-10 w-5 shrink-0 items-center justify-center rounded-lg transition-colors ${
+                      className={`flex h-9 w-4 shrink-0 items-center justify-center rounded-lg transition-colors ${
                         canReorder ? "cursor-grab text-slate-400 hover:bg-slate-50 active:cursor-grabbing" : "cursor-default text-slate-200"
                       }`}
                       style={{ touchAction: "none" }}
                       aria-label={`Hold and drag ${i.name} to reorder`}
                       disabled={!canReorder || savingOrder}
                     >
-                      <GripVertical className="h-4 w-4" />
+                      <GripVertical className="h-3.5 w-3.5" />
                     </button>
 
-                    <div className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-full ${wrap}`}>
-                      <Icon className={`h-5 w-5 ${icon}`} />
+                    <div className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full ${wrap}`}>
+                      <Icon className={`h-4 w-4 ${icon}`} />
                     </div>
 
                     <div className="min-w-0 flex-1">
-                      <div className="flex min-w-0 items-center gap-2 leading-tight">
-                        <p className="truncate text-[15px] font-bold text-slate-900">{i.name}</p>
-                        {i.repeat_every_cycle && <Repeat className="h-3.5 w-3.5 shrink-0 text-emerald-500" />}
+                      <div className="flex min-w-0 items-center gap-1.5 leading-tight">
+                        <p className="truncate text-[13px] font-medium text-slate-900">{i.name}</p>
+                        {i.repeat_every_cycle && <Repeat className="h-3 w-3 shrink-0 text-emerald-500" />}
                         <button
                           type="button"
                           onClick={() => togglePaid(i)}
                           disabled={isSavingPaid || savingOrder || !!draggingId}
-                          className={`shrink-0 rounded-lg px-2 py-1 text-[10px] font-bold transition-colors ${
+                          className={`shrink-0 rounded-md px-1.5 py-0.5 text-[9px] font-medium transition-colors ${
                             i.is_paid
                               ? "bg-emerald-50 text-emerald-700 hover:bg-emerald-100"
                               : "bg-orange-50 text-orange-700 hover:bg-orange-100"
@@ -647,34 +647,36 @@ export default function FixedSpending() {
                           {i.is_paid ? "Paid" : "Due"}
                         </button>
                       </div>
-                      <p className="mt-1 truncate text-xs font-medium text-slate-500">
+                      <p className="mt-0.5 truncate text-[11px] font-normal leading-4 text-slate-500">
                         {i.category}{cleanNote ? ` · ${cleanNote}` : ""}
                       </p>
                     </div>
 
-                    <p className={`shrink-0 text-right text-sm font-bold tabular-nums ${i.is_paid ? "text-emerald-700" : "text-orange-600"}`}>
-                      {formatMoney(i.amount)}
-                    </p>
+                    <div className="ml-1 flex w-[84px] shrink-0 flex-col items-end gap-0.5">
+                      <p className={`text-right text-[12px] font-medium leading-tight tabular-nums ${i.is_paid ? "text-emerald-700" : "text-orange-600"}`}>
+                        {formatMoney(i.amount)}
+                      </p>
 
-                    <button
-                      type="button"
-                      className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-slate-500 transition-colors hover:bg-slate-50"
-                      onClick={() => { setEditing(i); setSheetOpen(true); }}
-                      disabled={savingOrder || !!draggingId}
-                      aria-label={`Edit ${i.name}`}
-                    >
-                      <Pencil className="h-4 w-4" />
-                    </button>
+                      <div className="flex items-center gap-0.5">
+                        <button
+                          type="button"
+                          className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg text-slate-500 transition-colors hover:bg-slate-50"
+                          onClick={() => { setEditing(i); setSheetOpen(true); }}
+                          disabled={savingOrder || !!draggingId}
+                          aria-label={`Edit ${i.name}`}
+                        >
+                          <Pencil className="h-3.5 w-3.5" />
+                        </button>
 
-                    <DropdownMenu>
+                        <DropdownMenu>
                       <DropdownMenuTrigger asChild>
                         <button
                           type="button"
-                          className="flex h-9 w-8 shrink-0 items-center justify-center rounded-xl text-slate-500 transition-colors hover:bg-slate-50"
+                          className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg text-slate-500 transition-colors hover:bg-slate-50"
                           disabled={savingOrder || !!draggingId}
                           aria-label={`More options for ${i.name}`}
                         >
-                          <MoreVertical className="h-4 w-4" />
+                          <MoreVertical className="h-3.5 w-3.5" />
                         </button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end" className="w-44 rounded-2xl">
@@ -687,6 +689,8 @@ export default function FixedSpending() {
                         </DropdownMenuItem>
                       </DropdownMenuContent>
                     </DropdownMenu>
+                      </div>
+                    </div>
                   </div>
                 );
               })}
