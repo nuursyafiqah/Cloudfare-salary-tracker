@@ -23,7 +23,16 @@ export default function MobileLayout({ children }) {
         </div>
       </main>
 
-      <nav className="relative z-40 shrink-0 border-t border-border bg-card/95 shadow-[0_-8px_24px_rgba(15,23,42,0.08)] backdrop-blur">
+      <nav
+        className="mobile-no-select relative z-40 shrink-0 border-t border-border bg-card/95 shadow-[0_-8px_24px_rgba(15,23,42,0.08)] backdrop-blur"
+        style={{
+          WebkitTouchCallout: "none",
+          WebkitTapHighlightColor: "transparent",
+          WebkitUserSelect: "none",
+          userSelect: "none",
+        }}
+        onContextMenu={(event) => event.preventDefault()}
+      >
         <div
           className="mx-auto flex max-w-lg justify-around px-2 pt-2"
           style={{ paddingBottom: "calc(0.5rem + env(safe-area-inset-bottom))" }}

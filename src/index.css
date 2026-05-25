@@ -89,3 +89,20 @@
     @apply bg-background text-foreground;
   }
 }
+@layer utilities {
+  .mobile-no-select,
+  .mobile-no-select * {
+    -webkit-user-select: none;
+    user-select: none;
+    -webkit-touch-callout: none;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  .mobile-no-select input,
+  .mobile-no-select textarea,
+  .mobile-no-select [contenteditable="true"] {
+    -webkit-user-select: text;
+    user-select: text;
+    -webkit-touch-callout: default;
+  }
+}
