@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { cloudflare } from "@/api/cloudflareClient";
 import { Button } from "@/components/ui/button";
-import { Plus, ArrowRightLeft, Info } from "lucide-react";
+import { Plus, ArrowRightLeft, Info, CalendarDays } from "lucide-react";
 import MobileLayout from "../components/MobileLayout";
 import SummaryCards from "../components/SummaryCards";
 import { filterExpensesForCycle, formatDisplayDate, parseDateOnly } from "@/utils/cycleFilters";
@@ -47,8 +47,8 @@ export default function Dashboard() {
   if (loading) {
     return (
       <MobileLayout>
-        <div className="flex items-center justify-center h-60">
-          <div className="w-6 h-6 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+        <div className="flex h-60 items-center justify-center">
+          <div className="h-6 w-6 animate-spin rounded-full border-2 border-primary border-t-transparent" />
         </div>
       </MobileLayout>
     );
@@ -63,7 +63,7 @@ export default function Dashboard() {
           </div>
           <div>
             <h1 className="text-lg font-semibold">Dashboard cannot load</h1>
-            <p className="mt-2 text-sm text-muted-foreground break-words">{error}</p>
+            <p className="mt-2 break-words text-sm text-muted-foreground">{error}</p>
           </div>
           <Button className="h-11 rounded-xl" onClick={() => window.location.reload()}>
             Refresh
@@ -75,76 +75,106 @@ export default function Dashboard() {
 
   return (
     <MobileLayout>
-      <div className="space-y-5 pb-4">
-        {/* Header */}
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight">Salary Cycle</h1>
-          <p className="text-sm text-muted-foreground">Spending Tracker</p>
-        </div>
+      <div className="-mx-4 -mb-6 -mt-4 min-h-[calc(100dvh-74px)] overflow-hidden bg-[radial-gradient(circle_at_top_left,_#eef2ff_0%,_#f8fafc_43%,_#ffffff_100%)] px-4 pb-8 pt-5">
+        <div className="pointer-events-none absolute left-1/2 top-0 h-40 w-40 -translate-x-1/2 rounded-full bg-violet-200/30 blur-3xl" />
 
-        {!cycle ? (
-          <div className="text-center py-12 space-y-4">
-            <div className="w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center mx-auto">
-              <ArrowRightLeft className="w-7 h-7 text-primary" />
-            </div>
+        <div className="relative space-y-5">
+          {/* Header */}
+          <div className="flex items-start justify-between gap-3">
             <div>
-              <h2 className="text-lg font-semibold">No Active Cycle</h2>
-              <p className="text-sm text-muted-foreground mt-1 max-w-xs mx-auto">
-                Start by creating your first salary cycle. This tracker follows your salary date, not calendar month.
-              </p>
+              <h1 className="text-[28px] font-extrabold leading-tight tracking-tight text-slate-950">Salary Cycle</h1>
+              <p className="mt-1 text-[15px] font-medium tracking-wide text-slate-500">Spending Tracker</p>
             </div>
-            <Button className="h-12 px-8 text-base rounded-xl" onClick={() => navigate("/cycles?new=1")}>
-              Start New Salary Cycle
-            </Button>
+            <button
+              type="button"
+              onClick={() => navigate("/cycles")}
+              className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border border-violet-200 bg-white/75 text-violet-600 shadow-[0_10px_30px_rgba(124,58,237,0.12)] backdrop-blur transition active:scale-95"
+              aria-label="Open salary cycles"
+            >
+              <CalendarDays className="h-5 w-5" />
+            </button>
           </div>
-        ) : (
-          <>
-            {/* Cycle info */}
-            <div className="bg-primary/5 rounded-2xl p-3 flex items-start gap-2">
-              <Info className="w-4 h-4 text-primary mt-0.5 shrink-0" />
-              <p className="text-xs text-muted-foreground">
-                Current cycle started <strong>{fmt(cycle.start_date)}</strong>.
-                {cycle.end_date ? ` Ends ${fmt(cycle.end_date)}.` : " End date not set — cycle stays active until next salary."}
-              </p>
-            </div>
 
-            <SummaryCards cycle={cycle} fixedTotal={fixedTotal} expenseTotal={expenseTotal} />
-
-            {/* Quick actions */}
-            <div className="grid grid-cols-2 gap-3">
-              <Button variant="outline" className="h-12 rounded-xl text-sm font-medium gap-2" onClick={() => navigate("/expenses?add=1")}>
-                <Plus className="w-4 h-4" /> Add Expense
-              </Button>
-              <Button variant="outline" className="h-12 rounded-xl text-sm font-medium gap-2" onClick={() => navigate("/fixed?add=1")}>
-                <Plus className="w-4 h-4" /> Fixed Spending
-              </Button>
-            </div>
-            <Button variant="secondary" className="w-full h-12 rounded-xl text-sm font-medium gap-2" onClick={() => navigate("/cycles?new=1")}>
-              <ArrowRightLeft className="w-4 h-4" /> Create Next Salary Cycle
-            </Button>
-
-            {/* Recent expenses */}
-            {recentExpenses.length > 0 && (
-              <div>
-                <div className="flex items-center justify-between mb-3">
-                  <h3 className="text-sm font-semibold">Recent Expenses</h3>
-                  <Link to="/expenses" className="text-xs text-primary font-medium">View all</Link>
-                </div>
-                <div className="space-y-2">
-                  {recentExpenses.map((e) => (
-                    <div key={e.id} className="flex items-center justify-between bg-card rounded-xl p-3 border border-border">
-                      <div>
-                        <p className="text-sm font-medium">{e.description || e.category}</p>
-                        <p className="text-xs text-muted-foreground">{fmt(e.date)} · {e.category}</p>
-                      </div>
-                      <p className="text-sm font-semibold text-rose-600">-⃁ {e.amount?.toFixed(2)}</p>
-                    </div>
-                  ))}
-                </div>
+          {!cycle ? (
+            <div className="rounded-[1.6rem] border border-white/80 bg-white/85 p-6 text-center shadow-[0_18px_45px_rgba(15,23,42,0.08)] backdrop-blur">
+              <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-3xl bg-gradient-to-br from-violet-500 to-indigo-500 text-white shadow-[0_12px_30px_rgba(99,102,241,0.25)]">
+                <ArrowRightLeft className="h-7 w-7" />
               </div>
-            )}
-          </>
-        )}
+              <div className="mt-4">
+                <h2 className="text-lg font-bold text-slate-950">No Active Cycle</h2>
+                <p className="mx-auto mt-1 max-w-xs text-sm leading-6 text-slate-500">
+                  Start by creating your first salary cycle. This tracker follows your salary date, not calendar month.
+                </p>
+              </div>
+              <Button
+                className="mt-5 h-12 rounded-2xl bg-gradient-to-r from-violet-600 to-indigo-500 px-8 text-base font-bold text-white shadow-[0_14px_28px_rgba(99,102,241,0.24)] hover:from-violet-600 hover:to-indigo-500"
+                onClick={() => navigate("/cycles?new=1")}
+              >
+                Start New Salary Cycle
+              </Button>
+            </div>
+          ) : (
+            <>
+              {/* Cycle info */}
+              <div className="flex items-start gap-3 rounded-[1.35rem] border border-indigo-100 bg-white/70 p-4 shadow-[0_12px_32px_rgba(59,130,246,0.08)] backdrop-blur">
+                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-blue-50 text-blue-600 ring-1 ring-blue-100">
+                  <Info className="h-4 w-4" />
+                </div>
+                <p className="text-[13px] leading-6 text-slate-600">
+                  Current cycle started <strong className="font-bold text-indigo-600">{fmt(cycle.start_date)}</strong>.
+                  {cycle.end_date ? ` Ends ${fmt(cycle.end_date)}.` : " End date not set — cycle stays active until next salary."}
+                </p>
+              </div>
+
+              <SummaryCards cycle={cycle} fixedTotal={fixedTotal} expenseTotal={expenseTotal} />
+
+              {/* Quick actions */}
+              <div className="grid grid-cols-2 gap-3">
+                <Button
+                  variant="outline"
+                  className="h-12 rounded-2xl border-violet-200 bg-white/75 text-sm font-bold text-indigo-600 shadow-sm backdrop-blur hover:bg-violet-50 hover:text-indigo-700"
+                  onClick={() => navigate("/expenses?add=1")}
+                >
+                  <Plus className="h-4 w-4" /> Add Expense
+                </Button>
+                <Button
+                  variant="outline"
+                  className="h-12 rounded-2xl border-violet-200 bg-white/75 text-sm font-bold text-indigo-600 shadow-sm backdrop-blur hover:bg-violet-50 hover:text-indigo-700"
+                  onClick={() => navigate("/fixed?add=1")}
+                >
+                  <Plus className="h-4 w-4" /> Fixed Spending
+                </Button>
+              </div>
+              <Button
+                className="h-12 w-full rounded-2xl bg-gradient-to-r from-violet-600 to-indigo-500 text-sm font-bold text-white shadow-[0_16px_32px_rgba(99,102,241,0.25)] hover:from-violet-600 hover:to-indigo-500 active:scale-[0.99]"
+                onClick={() => navigate("/cycles?new=1")}
+              >
+                <ArrowRightLeft className="h-4 w-4" /> Create Next Salary Cycle
+              </Button>
+
+              {/* Recent expenses */}
+              {recentExpenses.length > 0 && (
+                <div>
+                  <div className="mb-3 flex items-center justify-between">
+                    <h3 className="text-sm font-bold text-slate-900">Recent Expenses</h3>
+                    <Link to="/expenses" className="text-xs font-bold text-indigo-600">View all</Link>
+                  </div>
+                  <div className="space-y-2">
+                    {recentExpenses.map((e) => (
+                      <div key={e.id} className="flex items-center justify-between rounded-2xl border border-white/80 bg-white/80 p-3 shadow-sm backdrop-blur">
+                        <div>
+                          <p className="text-sm font-semibold text-slate-900">{e.description || e.category}</p>
+                          <p className="text-xs text-slate-500">{fmt(e.date)} · {e.category}</p>
+                        </div>
+                        <p className="text-sm font-bold text-rose-600">-⃁ {e.amount?.toFixed(2)}</p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </>
+          )}
+        </div>
       </div>
     </MobileLayout>
   );
