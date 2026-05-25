@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { cloudflare } from "@/api/cloudflareClient";
 import { filterExpensesForCycle, formatDisplayDate, getPreviousDate, toDateOnly } from "@/utils/cycleFilters";
 import { applyPaidStatusToNote, stripPaidStatusFromNote } from "@/utils/fixedSpendingPaid";
+import { normalizeFixedSpendingCategory } from "@/utils/fixedSpendingCategories";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -148,7 +149,7 @@ export default function SalaryCycles() {
               salary_cycle_id: newCycle.id,
               name: f.name,
               amount: f.amount,
-              category: f.category,
+              category: normalizeFixedSpendingCategory(f.category),
               repeat_every_cycle: true,
               is_paid: false,
               note: applyPaidStatusToNote(stripPaidStatusFromNote(f.note), false),

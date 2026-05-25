@@ -8,6 +8,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
 import { formatDisplayDate } from "@/utils/cycleFilters";
 import { applyPaidStatusToNote, getPaidStatusFromNote, normalizeFixedSpendingItems, stripPaidStatusFromNote } from "@/utils/fixedSpendingPaid";
+import { normalizeFixedSpendingCategory } from "@/utils/fixedSpendingCategories";
 import MobileLayout from "../components/MobileLayout";
 import FixedSpendingForm from "../components/FixedSpendingForm";
 
@@ -118,7 +119,12 @@ export default function FixedSpending() {
       const f = await cloudflare.entities.FixedSpending.filter({ salary_cycle_id: selectedCycle.id });
       const migratedFixedItems = await migrateLegacyPaidStorage(f);
       await syncMissingPaidMarkers(migratedFixedItems);
-      setItems(normalizeFixedSpendingItems(migratedFixedItems));
+      setItems(
+        normalizeFixedSpendingItems(migratedFixedItems).map((item) => ({
+          ...item,
+          category: normalizeFixedSpendingCategory(item.category),
+        }))
+      );
     } else {
       setCycle(null);
       setItems([]);
@@ -131,12 +137,14 @@ export default function FixedSpending() {
     if (editing) {
       await cloudflare.entities.FixedSpending.update(editing.id, {
         ...data,
+        category: normalizeFixedSpendingCategory(data.category),
         is_paid: !!editing.is_paid,
         note: applyPaidStatusToNote(data.note, !!editing.is_paid),
       });
     } else {
       await cloudflare.entities.FixedSpending.create({
         ...data,
+        category: normalizeFixedSpendingCategory(data.category),
         salary_cycle_id: cycle.id,
         is_paid: false,
         note: applyPaidStatusToNote(data.note, false),

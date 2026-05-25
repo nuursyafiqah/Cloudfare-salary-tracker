@@ -5,14 +5,13 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
-
-const categories = ["Rent", "Loan", "Pika & (mak abah)", "Yuran Anak", "Loan ASB (Saving)", "Loan Rumah", "Internet", "Insurance", "Utilities", "Subscription", "Other"];
+import { FIXED_SPENDING_CATEGORIES, normalizeFixedSpendingCategory } from "@/utils/fixedSpendingCategories";
 
 export default function FixedSpendingForm({ onSubmit, initial, loading }) {
   const [form, setForm] = useState({
     name: initial?.name || "",
     amount: initial?.amount || "",
-    category: initial?.category || "",
+    category: normalizeFixedSpendingCategory(initial?.category),
     repeat_every_cycle: initial?.repeat_every_cycle ?? true,
     note: initial?.note || "",
   });
@@ -33,7 +32,7 @@ export default function FixedSpendingForm({ onSubmit, initial, loading }) {
         <Label>Category</Label>
         <Select value={form.category} onValueChange={(v) => set("category", v)}>
           <SelectTrigger className="mt-1 h-12 text-base"><SelectValue placeholder="Select category" /></SelectTrigger>
-          <SelectContent>{categories.map((c) => <SelectItem key={c} value={c}>{c}</SelectItem>)}</SelectContent>
+          <SelectContent>{FIXED_SPENDING_CATEGORIES.map((c) => <SelectItem key={c} value={c}>{c}</SelectItem>)}</SelectContent>
         </Select>
       </div>
       <div>
