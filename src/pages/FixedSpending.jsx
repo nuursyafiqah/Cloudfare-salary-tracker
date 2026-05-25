@@ -367,14 +367,13 @@ export default function FixedSpending() {
   return (
     <MobileLayout>
       <div
-        className="mobile-no-select -mx-4 -mt-4 min-h-full touch-pan-y bg-[radial-gradient(circle_at_top_left,rgba(16,185,129,0.12),transparent_32%),linear-gradient(180deg,#ffffff_0%,#f8fafc_45%,#f7f9fb_100%)] px-3 pb-4 pt-4 sm:px-4"
+        className="fixed-spending-no-select -mx-4 -mt-4 min-h-full touch-pan-y bg-[radial-gradient(circle_at_top_left,rgba(16,185,129,0.12),transparent_32%),linear-gradient(180deg,#ffffff_0%,#f8fafc_45%,#f7f9fb_100%)] px-3 pb-4 pt-4 sm:px-4"
         style={{
           WebkitTouchCallout: "none",
           WebkitTapHighlightColor: "transparent",
           WebkitUserSelect: "none",
           userSelect: "none",
         }}
-        onContextMenu={(event) => event.preventDefault()}
       >
         <div className="space-y-3">
           <header className="flex items-start justify-between gap-3">
@@ -526,8 +525,8 @@ export default function FixedSpending() {
                     key={i.id}
                     data-fixed-spending-id={String(i.id)}
                     draggable={false}
-                    onContextMenu={(event) => event.preventDefault()}
-                    className={`group relative flex items-center gap-2 rounded-[1.05rem] border bg-white/95 px-2.5 py-2 shadow-[0_8px_22px_rgba(15,23,42,0.055)] transition-[box-shadow,border-color,opacity] duration-200 ${
+                    onDragStart={(event) => event.preventDefault()}
+                    className={`group relative flex select-none items-center gap-2 rounded-[1.05rem] border bg-white/95 px-2.5 py-2 shadow-[0_8px_22px_rgba(15,23,42,0.055)] transition-[box-shadow,border-color,opacity] duration-200 ${
                       i.is_paid ? "border-emerald-100" : "border-orange-100"
                     } ${isSavingPaid ? "opacity-70" : ""}`}
                   >

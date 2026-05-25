@@ -106,3 +106,46 @@
     -webkit-touch-callout: default;
   }
 }
+
+@layer utilities {
+  html,
+  body,
+  #root {
+    -webkit-tap-highlight-color: transparent;
+    overscroll-behavior: none;
+  }
+
+  .app-mobile-shell,
+  .app-mobile-shell *:not(input):not(textarea):not([contenteditable="true"]) {
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  .mobile-bottom-nav,
+  .mobile-bottom-nav *,
+  .mobile-tab-button,
+  .mobile-tab-button * {
+    -webkit-user-select: none;
+    user-select: none;
+    -webkit-touch-callout: none;
+    -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
+  }
+
+  .mobile-tab-button {
+    pointer-events: auto;
+    background: transparent;
+  }
+
+  .mobile-tab-button:focus,
+  .mobile-tab-button:active {
+    outline: none;
+  }
+
+  .fixed-spending-no-select,
+  .fixed-spending-no-select *:not(input):not(textarea):not([contenteditable="true"]) {
+    -webkit-user-select: none;
+    user-select: none;
+    -webkit-touch-callout: none;
+    -webkit-tap-highlight-color: transparent;
+  }
+}
