@@ -97,6 +97,13 @@ function makeEntity(entityName) {
         body: JSON.stringify(items),
       });
     },
+
+    async bulkUpdate(items = []) {
+      return apiRequest(`${route}/bulk`, {
+        method: "PATCH",
+        body: JSON.stringify(items),
+      });
+    },
   };
 }
 

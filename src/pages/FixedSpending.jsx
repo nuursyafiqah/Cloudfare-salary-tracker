@@ -42,13 +42,17 @@ const prepareFixedSpendingItems = (fixedItems = []) => {
     category: normalizeFixedSpendingCategory(item.category),
   }));
 
-  // Legacy rows all have sort_order 0. Keep the API order for them until the user manually sorts.
-  const hasSavedCustomOrder = normalizedItems.some((item) => normalizeSortOrder(item.sort_order) > 0);
-  if (!hasSavedCustomOrder) return normalizedItems;
+  // Legacy rows all have sort_order 0. Keep newest-first until the user manually sorts.
+  // Once the user drags, sort_order becomes 0,1,2... and this page will always reload by that saved order.
+  const uniqueSavedOrders = new Set(normalizedItems.map((item) => normalizeSortOrder(item.sort_order)));
+  const hasSavedCustomOrder = normalizedItems.length > 1 && uniqueSavedOrders.size > 1;
 
   return [...normalizedItems].sort((a, b) => {
-    const orderDiff = normalizeSortOrder(a.sort_order) - normalizeSortOrder(b.sort_order);
-    if (orderDiff !== 0) return orderDiff;
+    if (hasSavedCustomOrder) {
+      const orderDiff = normalizeSortOrder(a.sort_order) - normalizeSortOrder(b.sort_order);
+      if (orderDiff !== 0) return orderDiff;
+    }
+
     return new Date(b.created_date || 0).getTime() - new Date(a.created_date || 0).getTime();
   });
 };
@@ -185,7 +189,7 @@ export default function FixedSpending() {
 
     if (selectedCycle) {
       setCycle(selectedCycle);
-      const f = await cloudflare.entities.FixedSpending.filter({ salary_cycle_id: selectedCycle.id });
+      const f = await cloudflare.entities.FixedSpending.filter({ salary_cycle_id: selectedCycle.id }, "sort_order");
       const migratedFixedItems = await migrateLegacyPaidStorage(f);
       await syncMissingPaidMarkers(migratedFixedItems);
       setItems(prepareFixedSpendingItems(migratedFixedItems));
@@ -232,11 +236,17 @@ export default function FixedSpending() {
     setSavingOrder(true);
 
     try {
-      await Promise.all(
-        nextItems.map((item, index) =>
-          cloudflare.entities.FixedSpending.update(item.id, { sort_order: index })
-        )
-      );
+      const orderPayload = nextItems.map((item, index) => ({ id: item.id, sort_order: index }));
+
+      if (typeof cloudflare.entities.FixedSpending.bulkUpdate === "function") {
+        await cloudflare.entities.FixedSpending.bulkUpdate(orderPayload);
+      } else {
+        await Promise.all(
+          orderPayload.map((item) =>
+            cloudflare.entities.FixedSpending.update(item.id, { sort_order: item.sort_order })
+          )
+        );
+      }
     } catch (error) {
       console.error("Failed to save fixed spending custom order", error);
       setItems(previousItems);

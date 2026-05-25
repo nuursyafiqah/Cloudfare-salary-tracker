@@ -206,7 +206,14 @@ function buildOrder(url, config) {
   const direction = rawSort.startsWith("-") ? "DESC" : "ASC";
   const field = rawSort.replace(/^-/, "");
   const allowed = new Set(["id", "created_date", "updated_date", ...config.fields]);
-  return allowed.has(field) ? `ORDER BY ${field} ${direction}` : "ORDER BY created_date DESC";
+
+  if (!allowed.has(field)) return "ORDER BY created_date DESC";
+
+  // Keep fixed-spending custom order stable after refresh.
+  // If two rows have the same sort_order, newest rows stay below/above predictably instead of random DB order.
+  if (field === "sort_order") return `ORDER BY sort_order ${direction}, created_date DESC`;
+
+  return `ORDER BY ${field} ${direction}`;
 }
 
 function buildLimit(url) {
@@ -278,6 +285,38 @@ async function bulkCreateRecords(request, env, config) {
   return json(createdRows.map((row) => normalizeBooleanFields(row, config)), 201);
 }
 
+async function bulkUpdateRecords(request, env, config) {
+  const body = await readJson(request);
+  if (!Array.isArray(body)) return error("Bulk update expects an array", 400);
+  if (body.length === 0) return json([]);
+
+  const updated = nowIso();
+  const statements = body.map((item) => {
+    if (!item?.id) throw new Error("Bulk update item is missing id");
+
+    const record = sanitizeRecord(item, config);
+    const fields = Object.keys(record);
+    if (fields.length === 0) {
+      return env.DB.prepare(`SELECT id FROM ${config.table} WHERE id = ?`).bind(item.id);
+    }
+
+    record.updated_date = updated;
+    const updateFields = Object.keys(record);
+    const setClause = updateFields.map((field) => `${field} = ?`).join(", ");
+    return env.DB.prepare(`UPDATE ${config.table} SET ${setClause} WHERE id = ?`)
+      .bind(...updateFields.map((field) => record[field]), item.id);
+  });
+
+  await env.DB.batch(statements);
+
+  const ids = body.map((item) => item.id);
+  const placeholders = ids.map(() => "?").join(", ");
+  const rows = await env.DB.prepare(`SELECT * FROM ${config.table} WHERE id IN (${placeholders})`).bind(...ids).all();
+  const byId = new Map((rows.results || []).map((row) => [row.id, normalizeBooleanFields(row, config)]));
+
+  return json(ids.map((id) => byId.get(id)).filter(Boolean));
+}
+
 async function updateRecord(request, env, config, id) {
   const body = await readJson(request);
   const record = sanitizeRecord(body, config);
@@ -329,6 +368,7 @@ async function handleApi(request, env) {
     return row ? json(row) : error("Record not found", 404);
   }
   if (request.method === "POST" && idOrAction === "bulk") return bulkCreateRecords(request, env, config);
+  if (request.method === "PATCH" && idOrAction === "bulk") return bulkUpdateRecords(request, env, config);
   if (request.method === "POST" && !idOrAction) return createRecord(request, env, config);
   if (request.method === "PATCH" && idOrAction) return updateRecord(request, env, config, idOrAction);
   if (request.method === "DELETE" && idOrAction) return deleteRecord(env, config, idOrAction);
