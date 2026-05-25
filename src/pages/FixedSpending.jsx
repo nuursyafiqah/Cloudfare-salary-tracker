@@ -1,9 +1,10 @@
 import { useState, useEffect } from "react";
+import { DragDropContext, Droppable, Draggable } from "@hello-pangea/dnd";
 import { cloudflare } from "@/api/cloudflareClient";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
-import { Plus, Pencil, Trash2, Repeat } from "lucide-react";
+import { Plus, Pencil, Trash2, Repeat, GripVertical } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
 import { formatDisplayDate } from "@/utils/cycleFilters";
@@ -28,6 +29,36 @@ const removeLegacyPaidStorage = () => {
   } catch {
     // Ignore private-browser storage limitations.
   }
+};
+
+const normalizeSortOrder = (value, fallback = 0) => {
+  const number = Number(value);
+  return Number.isFinite(number) ? number : fallback;
+};
+
+const prepareFixedSpendingItems = (fixedItems = []) => {
+  const normalizedItems = normalizeFixedSpendingItems(fixedItems).map((item, index) => ({
+    ...item,
+    sort_order: normalizeSortOrder(item.sort_order, index),
+    category: normalizeFixedSpendingCategory(item.category),
+  }));
+
+  // Legacy rows all have sort_order 0. Keep the API order for them until the user manually sorts.
+  const hasSavedCustomOrder = normalizedItems.some((item) => normalizeSortOrder(item.sort_order) > 0);
+  if (!hasSavedCustomOrder) return normalizedItems;
+
+  return [...normalizedItems].sort((a, b) => {
+    const orderDiff = normalizeSortOrder(a.sort_order) - normalizeSortOrder(b.sort_order);
+    if (orderDiff !== 0) return orderDiff;
+    return new Date(b.created_date || 0).getTime() - new Date(a.created_date || 0).getTime();
+  });
+};
+
+const reorderItems = (list, startIndex, endIndex) => {
+  const result = Array.from(list);
+  const [removed] = result.splice(startIndex, 1);
+  result.splice(endIndex, 0, removed);
+  return result.map((item, index) => ({ ...item, sort_order: index }));
 };
 
 const migrateLegacyPaidStorage = async (fixedItems = []) => {
@@ -86,6 +117,7 @@ export default function FixedSpending() {
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [savingOrder, setSavingOrder] = useState(false);
   const [savingPaidIds, setSavingPaidIds] = useState([]);
   const [sheetOpen, setSheetOpen] = useState(false);
   const [editing, setEditing] = useState(null);
@@ -119,12 +151,7 @@ export default function FixedSpending() {
       const f = await cloudflare.entities.FixedSpending.filter({ salary_cycle_id: selectedCycle.id });
       const migratedFixedItems = await migrateLegacyPaidStorage(f);
       await syncMissingPaidMarkers(migratedFixedItems);
-      setItems(
-        normalizeFixedSpendingItems(migratedFixedItems).map((item) => ({
-          ...item,
-          category: normalizeFixedSpendingCategory(item.category),
-        }))
-      );
+      setItems(prepareFixedSpendingItems(migratedFixedItems));
     } else {
       setCycle(null);
       setItems([]);
@@ -138,6 +165,7 @@ export default function FixedSpending() {
       await cloudflare.entities.FixedSpending.update(editing.id, {
         ...data,
         category: normalizeFixedSpendingCategory(data.category),
+        sort_order: normalizeSortOrder(editing.sort_order),
         is_paid: !!editing.is_paid,
         note: applyPaidStatusToNote(data.note, !!editing.is_paid),
       });
@@ -146,6 +174,7 @@ export default function FixedSpending() {
         ...data,
         category: normalizeFixedSpendingCategory(data.category),
         salary_cycle_id: cycle.id,
+        sort_order: items.length,
         is_paid: false,
         note: applyPaidStatusToNote(data.note, false),
       });
@@ -160,6 +189,30 @@ export default function FixedSpending() {
     await cloudflare.entities.FixedSpending.delete(deleteId);
     setDeleteId(null);
     await load();
+  };
+
+  const handleDragEnd = async (result) => {
+    const { source, destination } = result;
+    if (!destination || source.index === destination.index) return;
+
+    const previousItems = items;
+    const nextItems = reorderItems(items, source.index, destination.index);
+    setItems(nextItems);
+    setSavingOrder(true);
+
+    try {
+      await Promise.all(
+        nextItems.map((item, index) =>
+          cloudflare.entities.FixedSpending.update(item.id, { sort_order: index })
+        )
+      );
+    } catch (error) {
+      console.error("Failed to save fixed spending custom order", error);
+      setItems(previousItems);
+      alert("Custom sort could not be saved. Please check your connection and try again.");
+    } finally {
+      setSavingOrder(false);
+    }
   };
 
   const togglePaid = async (item) => {
@@ -214,9 +267,12 @@ export default function FixedSpending() {
               {cycle.status !== "active" && <Badge variant="secondary" className="bg-amber-100 text-amber-700 hover:bg-amber-100">Closed</Badge>}
             </div>
             <p className="text-xs text-amber-600 mt-0.5">Tick the box after payment so you can track what is already paid.</p>
+            {items.length > 1 && (
+              <p className="text-xs text-amber-600 mt-0.5">Hold the grip icon and drag to custom sort your fixed spending list.</p>
+            )}
             {items.length > 0 && (
               <p className="text-xs text-amber-700 mt-1 font-medium">
-                Paid: {paidItems.length}/{items.length} items · ⃁ {paidTotal.toFixed(2)}
+                Paid: {paidItems.length}/{items.length} items · ⃁ {paidTotal.toFixed(2)}{savingOrder ? " · Saving order..." : ""}
               </p>
             )}
           </div>
@@ -231,46 +287,78 @@ export default function FixedSpending() {
         ) : items.length === 0 && cycle ? (
           <p className="text-sm text-muted-foreground text-center py-8">No fixed spending yet. Tap "Add" to record commitments like rent, loans, etc.</p>
         ) : (
-          <div className="space-y-1.5">
-            {items.map((i) => {
-              const isSavingPaid = savingPaidIds.includes(i.id);
-
-              return (
+          <DragDropContext onDragEnd={handleDragEnd}>
+            <Droppable droppableId="fixed-spending-list">
+              {(droppableProvided) => (
                 <div
-                  key={i.id}
-                  className={`rounded-xl px-3 py-2 border flex items-center gap-2 shadow-sm transition-colors ${
-                    i.is_paid ? "bg-emerald-50 border-emerald-200" : "bg-card border-border"
-                  } ${isSavingPaid ? "opacity-70" : ""}`}
+                  ref={droppableProvided.innerRef}
+                  {...droppableProvided.droppableProps}
+                  className="space-y-1.5"
                 >
-                  <Checkbox
-                    checked={!!i.is_paid}
-                    onCheckedChange={() => togglePaid(i)}
-                    disabled={isSavingPaid}
-                    className="h-5 w-5 rounded-md shrink-0"
-                    aria-label={i.is_paid ? `Mark ${i.name} as unpaid` : `Mark ${i.name} as paid`}
-                  />
+                  {items.map((i, index) => {
+                    const isSavingPaid = savingPaidIds.includes(i.id);
 
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-1.5 leading-tight">
-                      <p className="text-sm font-medium truncate">{i.name}</p>
-                      {i.repeat_every_cycle && <Repeat className="w-3 h-3 text-emerald-500 shrink-0" />}
-                      {i.is_paid && <Badge className="h-5 px-1.5 text-[10px] bg-emerald-100 text-emerald-700 hover:bg-emerald-100">Paid</Badge>}
-                    </div>
-                    <p className="text-[11px] leading-tight text-muted-foreground mt-0.5">{i.category}{stripPaidStatusFromNote(i.note) ? ` · ${stripPaidStatusFromNote(i.note)}` : ""}</p>
-                  </div>
-                  <p className={`text-sm font-semibold shrink-0 ml-1 ${i.is_paid ? "text-emerald-600" : "text-amber-600"}`}>⃁ {i.amount?.toFixed(2)}</p>
-                  <div className="flex gap-0.5 shrink-0">
-                    <button className="p-1.5 rounded-lg hover:bg-muted" onClick={() => { setEditing(i); setSheetOpen(true); }}>
-                      <Pencil className="w-3.5 h-3.5 text-muted-foreground" />
-                    </button>
-                    <button className="p-1.5 rounded-lg hover:bg-muted" onClick={() => setDeleteId(i.id)}>
-                      <Trash2 className="w-3.5 h-3.5 text-destructive" />
-                    </button>
-                  </div>
+                    return (
+                      <Draggable
+                        key={i.id}
+                        draggableId={String(i.id)}
+                        index={index}
+                        isDragDisabled={savingOrder}
+                      >
+                        {(draggableProvided, snapshot) => (
+                          <div
+                            ref={draggableProvided.innerRef}
+                            {...draggableProvided.draggableProps}
+                            style={draggableProvided.draggableProps.style}
+                            className={`rounded-xl px-2.5 py-2 border flex items-center gap-1.5 shadow-sm transition-colors ${
+                              i.is_paid ? "bg-emerald-50 border-emerald-200" : "bg-card border-border"
+                            } ${isSavingPaid || savingOrder ? "opacity-70" : ""} ${snapshot.isDragging ? "shadow-lg scale-[1.01] z-50" : ""}`}
+                          >
+                            <button
+                              type="button"
+                              {...draggableProvided.dragHandleProps}
+                              className="h-8 w-6 shrink-0 rounded-lg text-muted-foreground hover:bg-muted active:bg-muted flex items-center justify-center touch-none"
+                              aria-label={`Hold and drag ${i.name} to reorder`}
+                              disabled={savingOrder}
+                            >
+                              <GripVertical className="h-4 w-4" />
+                            </button>
+
+                            <Checkbox
+                              checked={!!i.is_paid}
+                              onCheckedChange={() => togglePaid(i)}
+                              disabled={isSavingPaid || savingOrder}
+                              className="h-5 w-5 rounded-md shrink-0"
+                              aria-label={i.is_paid ? `Mark ${i.name} as unpaid` : `Mark ${i.name} as paid`}
+                            />
+
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-1.5 leading-tight">
+                                <p className="text-sm font-medium truncate">{i.name}</p>
+                                {i.repeat_every_cycle && <Repeat className="w-3 h-3 text-emerald-500 shrink-0" />}
+                                {i.is_paid && <Badge className="h-5 px-1.5 text-[10px] bg-emerald-100 text-emerald-700 hover:bg-emerald-100">Paid</Badge>}
+                              </div>
+                              <p className="text-[11px] leading-tight text-muted-foreground mt-0.5">{i.category}{stripPaidStatusFromNote(i.note) ? ` · ${stripPaidStatusFromNote(i.note)}` : ""}</p>
+                            </div>
+                            <p className={`text-sm font-semibold shrink-0 ml-1 ${i.is_paid ? "text-emerald-600" : "text-amber-600"}`}>⃁ {i.amount?.toFixed(2)}</p>
+                            <div className="flex gap-0.5 shrink-0">
+                              <button className="p-1.5 rounded-lg hover:bg-muted" onClick={() => { setEditing(i); setSheetOpen(true); }} disabled={savingOrder}>
+                                <Pencil className="w-3.5 h-3.5 text-muted-foreground" />
+                              </button>
+                              <button className="p-1.5 rounded-lg hover:bg-muted" onClick={() => setDeleteId(i.id)} disabled={savingOrder}>
+                                <Trash2 className="w-3.5 h-3.5 text-destructive" />
+                              </button>
+                            </div>
+                          </div>
+                        )}
+                      </Draggable>
+                    );
+                  })}
+                  {droppableProvided.placeholder}
                 </div>
-              );
-            })}
-          </div>
+              )}
+            </Droppable>
+          </DragDropContext>
         )}
       </div>
 

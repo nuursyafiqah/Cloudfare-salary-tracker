@@ -36,6 +36,7 @@ CREATE TABLE IF NOT EXISTS fixed_spending (
   category TEXT NOT NULL,
   repeat_every_cycle INTEGER NOT NULL DEFAULT 0,
   is_paid INTEGER NOT NULL DEFAULT 0,
+  sort_order INTEGER NOT NULL DEFAULT 0,
   note TEXT DEFAULT '',
   created_date TEXT NOT NULL,
   updated_date TEXT NOT NULL,
@@ -44,3 +45,4 @@ CREATE TABLE IF NOT EXISTS fixed_spending (
 
 CREATE INDEX IF NOT EXISTS idx_fixed_spending_cycle ON fixed_spending(salary_cycle_id);
 CREATE INDEX IF NOT EXISTS idx_fixed_spending_paid ON fixed_spending(is_paid);
+CREATE INDEX IF NOT EXISTS idx_fixed_spending_sort_order ON fixed_spending(sort_order);

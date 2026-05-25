@@ -37,6 +37,7 @@ const SCHEMA_STATEMENTS = [
     category TEXT NOT NULL,
     repeat_every_cycle INTEGER NOT NULL DEFAULT 0,
     is_paid INTEGER NOT NULL DEFAULT 0,
+    sort_order INTEGER NOT NULL DEFAULT 0,
     note TEXT DEFAULT '',
     created_date TEXT NOT NULL,
     updated_date TEXT NOT NULL,
@@ -48,12 +49,24 @@ const SCHEMA_STATEMENTS = [
 
 let schemaReadyPromise = null;
 
+async function ensureTableColumn(env, tableName, columnName, definition) {
+  const info = await env.DB.prepare(`PRAGMA table_info(${tableName})`).all();
+  const hasColumn = (info.results || []).some((column) => column.name === columnName);
+
+  if (!hasColumn) {
+    await env.DB.prepare(`ALTER TABLE ${tableName} ADD COLUMN ${columnName} ${definition}`).run();
+  }
+}
+
 async function ensureSchema(env) {
   if (!schemaReadyPromise) {
     schemaReadyPromise = (async () => {
       for (const statement of SCHEMA_STATEMENTS) {
         await env.DB.prepare(statement).run();
       }
+
+      await ensureTableColumn(env, "fixed_spending", "sort_order", "INTEGER NOT NULL DEFAULT 0");
+      await env.DB.prepare("CREATE INDEX IF NOT EXISTS idx_fixed_spending_sort_order ON fixed_spending(sort_order)").run();
     })().catch((err) => {
       schemaReadyPromise = null;
       throw err;
@@ -87,11 +100,12 @@ const ENTITY_CONFIG = {
   },
   "fixed-spending": {
     table: "fixed_spending",
-    fields: ["salary_cycle_id", "name", "amount", "category", "repeat_every_cycle", "is_paid", "note"],
+    fields: ["salary_cycle_id", "name", "amount", "category", "repeat_every_cycle", "is_paid", "sort_order", "note"],
     defaults: {
       amount: 0,
       repeat_every_cycle: false,
       is_paid: false,
+      sort_order: 0,
       note: "",
     },
     booleans: ["repeat_every_cycle", "is_paid"],
@@ -140,7 +154,7 @@ function sanitizeRecord(data, config, { includeDefaults = false } = {}) {
     if (Object.prototype.hasOwnProperty.call(source, field)) {
       if (config.booleans.includes(field)) {
         record[field] = source[field] ? 1 : 0;
-      } else if (field === "amount" || field === "salary_amount") {
+      } else if (["amount", "salary_amount", "sort_order"].includes(field)) {
         const number = Number(source[field]);
         record[field] = Number.isFinite(number) ? number : 0;
       } else {

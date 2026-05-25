@@ -142,16 +142,23 @@ export default function SalaryCycles() {
       // Copy repeated fixed spending only when creating the next/latest cycle.
       if (isLatestCycle && previousCycle) {
         const prevFixed = await cloudflare.entities.FixedSpending.filter({ salary_cycle_id: previousCycle.id });
-        const repeated = prevFixed.filter((f) => f.repeat_every_cycle);
+        const repeated = prevFixed
+          .filter((f) => f.repeat_every_cycle)
+          .sort((a, b) => {
+            const orderDiff = Number(a.sort_order || 0) - Number(b.sort_order || 0);
+            if (orderDiff !== 0) return orderDiff;
+            return new Date(b.created_date || 0).getTime() - new Date(a.created_date || 0).getTime();
+          });
         if (repeated.length > 0) {
           await cloudflare.entities.FixedSpending.bulkCreate(
-            repeated.map((f) => ({
+            repeated.map((f, index) => ({
               salary_cycle_id: newCycle.id,
               name: f.name,
               amount: f.amount,
               category: normalizeFixedSpendingCategory(f.category),
               repeat_every_cycle: true,
               is_paid: false,
+              sort_order: index,
               note: applyPaidStatusToNote(stripPaidStatusFromNote(f.note), false),
             }))
           );
