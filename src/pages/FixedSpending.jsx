@@ -3,8 +3,32 @@ import { cloudflare } from "@/api/cloudflareClient";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
-import { AlertTriangle, Plus, Pencil, RefreshCw, Trash2, Repeat, GripVertical } from "lucide-react";
-import { Checkbox } from "@/components/ui/checkbox";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import {
+  AlertTriangle,
+  Building2,
+  CalendarDays,
+  CheckCircle2,
+  ChevronDown,
+  CircleAlert,
+  Flame,
+  GripVertical,
+  HandCoins,
+  Home,
+  Landmark,
+  MoreVertical,
+  Pencil,
+  Phone,
+  Plus,
+  ReceiptText,
+  RefreshCw,
+  Repeat,
+  ShieldCheck,
+  Trash2,
+  Wallet,
+  Wifi,
+  Zap,
+} from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { formatDisplayDate } from "@/utils/cycleFilters";
 import { applyPaidStatusToNote, getPaidStatusFromNote, normalizeFixedSpendingItems, stripPaidStatusFromNote } from "@/utils/fixedSpendingPaid";
@@ -33,6 +57,49 @@ const removeLegacyPaidStorage = () => {
 const normalizeSortOrder = (value, fallback = 0) => {
   const number = Number(value);
   return Number.isFinite(number) ? number : fallback;
+};
+
+const toAmount = (value) => {
+  const number = Number(value);
+  return Number.isFinite(number) ? number : 0;
+};
+
+const formatMoney = (value) => `⃁ ${toAmount(value).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+
+const getCategoryVisual = (item = {}) => {
+  const category = String(item.category || "").toLowerCase();
+  const name = String(item.name || "").toLowerCase();
+  const text = `${category} ${name}`;
+
+  if (text.includes("internet") || text.includes("wifi") || text.includes("wi-fi")) {
+    return { Icon: Wifi, wrap: "bg-violet-50", icon: "text-violet-500" };
+  }
+  if (text.includes("electric") || text.includes("utility") || text.includes("utilities")) {
+    return { Icon: Zap, wrap: "bg-orange-50", icon: "text-orange-500" };
+  }
+  if (text.includes("rent") || text.includes("rumah") || text.includes("housing") || text.includes("apartment")) {
+    return { Icon: Home, wrap: "bg-blue-50", icon: "text-blue-500" };
+  }
+  if (text.includes("insurance") || text.includes("insurans")) {
+    return { Icon: ShieldCheck, wrap: "bg-emerald-50", icon: "text-emerald-600" };
+  }
+  if (text.includes("phone") || text.includes("mobile") || text.includes("call") || text.includes("stc")) {
+    return { Icon: Phone, wrap: "bg-rose-50", icon: "text-rose-500" };
+  }
+  if (text.includes("hutang") || text.includes("loan") || text.includes("asb") || text.includes("cimb") || text.includes("rhb")) {
+    return { Icon: Building2, wrap: "bg-sky-50", icon: "text-sky-600" };
+  }
+  if (text.includes("anak") || text.includes("family") || text.includes("nafkah") || text.includes("mak") || text.includes("abah")) {
+    return { Icon: HandCoins, wrap: "bg-cyan-50", icon: "text-cyan-600" };
+  }
+  if (text.includes("fire") || text.includes("leased") || text.includes("furnish")) {
+    return { Icon: Flame, wrap: "bg-red-50", icon: "text-red-500" };
+  }
+  if (text.includes("saving") || text.includes("deposit")) {
+    return { Icon: Landmark, wrap: "bg-yellow-50", icon: "text-yellow-600" };
+  }
+
+  return { Icon: Wallet, wrap: "bg-emerald-50", icon: "text-emerald-600" };
 };
 
 const prepareFixedSpendingItems = (fixedItems = []) => {
@@ -154,6 +221,7 @@ export default function FixedSpending() {
   const [draggingId, setDraggingId] = useState(null);
   const [dragActive, setDragActive] = useState(false);
   const [savingPaidIds, setSavingPaidIds] = useState([]);
+  const [statusFilter, setStatusFilter] = useState("all");
   const listRef = useRef(null);
   const itemsRef = useRef([]);
   const dragStateRef = useRef(null);
@@ -286,7 +354,7 @@ export default function FixedSpending() {
   };
 
   const handleDragStart = (event, itemId) => {
-    if (savingOrder) return;
+    if (savingOrder || statusFilter !== "all") return;
 
     event.preventDefault();
     event.currentTarget.setPointerCapture?.(event.pointerId);
@@ -375,130 +443,260 @@ export default function FixedSpending() {
     }
   };
 
-  const total = items.reduce((s, i) => s + (i.amount || 0), 0);
+  const total = items.reduce((s, i) => s + toAmount(i.amount), 0);
   const paidItems = items.filter((i) => i.is_paid);
-  const paidTotal = paidItems.reduce((s, i) => s + (i.amount || 0), 0);
+  const dueItems = items.filter((i) => !i.is_paid);
+  const paidTotal = paidItems.reduce((s, i) => s + toAmount(i.amount), 0);
+  const dueTotal = total - paidTotal;
+  const filteredItems = statusFilter === "paid" ? paidItems : statusFilter === "due" ? dueItems : items;
+  const canReorder = statusFilter === "all" && items.length > 1;
+
+  const filters = [
+    { key: "all", label: "All", count: items.length, dot: "bg-emerald-500" },
+    { key: "paid", label: "Paid", count: paidItems.length, dot: "bg-emerald-500" },
+    { key: "due", label: "Due", count: dueItems.length, dot: "bg-orange-500" },
+  ];
 
   return (
     <MobileLayout>
-      <div className="space-y-4 pb-4">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-xl font-bold">Fixed Spending</h1>
+      <div className="-mx-4 -mt-4 min-h-full bg-[radial-gradient(circle_at_top_left,rgba(16,185,129,0.12),transparent_32%),linear-gradient(180deg,#ffffff_0%,#f8fafc_45%,#f7f9fb_100%)] px-4 pb-5 pt-5">
+        <div className="space-y-5">
+          <header className="flex items-start justify-between gap-3">
+            <div className="min-w-0 space-y-2">
+              <h1 className="text-2xl font-bold tracking-[0.04em] text-slate-950">Fixed Spending</h1>
+              {cycle && (
+                <button type="button" className="inline-flex items-center gap-2 rounded-full text-sm font-medium text-slate-500">
+                  <CalendarDays className="h-4 w-4" />
+                  <span>{formatDisplayDate(cycle.start_date)}</span>
+                  <ChevronDown className="h-3.5 w-3.5" />
+                </button>
+              )}
+            </div>
             {cycle && (
-              <p className="text-xs text-muted-foreground mt-0.5">
-                {formatDisplayDate(cycle.start_date)} — {formatDisplayDate(cycle.end_date)}
-              </p>
+              <Button
+                size="sm"
+                className="h-12 shrink-0 rounded-full bg-emerald-600 px-5 text-sm font-semibold shadow-[0_14px_30px_rgba(5,150,105,0.28)] hover:bg-emerald-700"
+                onClick={() => { setEditing(null); setSheetOpen(true); }}
+              >
+                <Plus className="mr-1.5 h-4 w-4" /> Add
+              </Button>
             )}
-          </div>
+          </header>
+
           {cycle && (
-            <Button size="sm" className="rounded-xl gap-1" onClick={() => { setEditing(null); setSheetOpen(true); }}>
-              <Plus className="w-4 h-4" /> Add
-            </Button>
-          )}
-        </div>
-
-        {cycle && (
-          <div className="bg-amber-50 rounded-xl p-3 border border-amber-200">
-            <div className="flex items-center justify-between gap-2">
-              <p className="text-sm font-semibold text-amber-800">Total Fixed: ⃁ {total.toFixed(2)}</p>
-              {cycle.status !== "active" && <Badge variant="secondary" className="bg-amber-100 text-amber-700 hover:bg-amber-100">Closed</Badge>}
-            </div>
-            <p className="text-xs text-amber-600 mt-0.5">Tick the box after payment so you can track what is already paid.</p>
-            {items.length > 1 && (
-              <p className="text-xs text-amber-600 mt-0.5">Hold the grip icon and drag to custom sort your fixed spending list.</p>
-            )}
-            {items.length > 0 && (
-              <p className="text-xs text-amber-700 mt-1 font-medium">
-                Paid: {paidItems.length}/{items.length} items · ⃁ {paidTotal.toFixed(2)}{savingOrder ? " · Saving order..." : ""}
-              </p>
-            )}
-          </div>
-        )}
-
-        {!cycle && !loading && (
-          <p className="text-sm text-muted-foreground text-center py-12">No salary cycle selected. Create one first from the Dashboard or open one from Salary Cycles.</p>
-        )}
-
-        {loading ? (
-          <div className="flex justify-center py-12"><div className="w-6 h-6 border-2 border-primary border-t-transparent rounded-full animate-spin" /></div>
-        ) : loadError ? (
-          <div className="rounded-2xl border border-red-200 bg-red-50 p-4 text-center space-y-3">
-            <div className="mx-auto flex h-10 w-10 items-center justify-center rounded-full bg-red-100">
-              <AlertTriangle className="h-5 w-5 text-red-600" />
-            </div>
-            <div>
-              <p className="text-sm font-semibold text-red-800">Fixed Spending could not load.</p>
-              <p className="text-xs text-red-600 mt-1 break-words">{loadError}</p>
-            </div>
-            <Button type="button" size="sm" variant="outline" className="rounded-xl gap-1.5" onClick={load}>
-              <RefreshCw className="h-3.5 w-3.5" /> Retry
-            </Button>
-          </div>
-        ) : items.length === 0 && cycle ? (
-          <p className="text-sm text-muted-foreground text-center py-8">No fixed spending yet. Tap "Add" to record commitments like rent, loans, etc.</p>
-        ) : (
-          <div ref={listRef} className="space-y-1.5">
-            {items.map((i) => {
-              const isSavingPaid = savingPaidIds.includes(i.id);
-              const isDragging = String(draggingId) === String(i.id);
-
-              return (
-                <div
-                  key={i.id}
-                  data-fixed-spending-id={String(i.id)}
-                  className={`rounded-xl px-2.5 py-2 border flex items-center gap-1.5 shadow-sm transition-all ${
-                    i.is_paid ? "bg-emerald-50 border-emerald-200" : "bg-card border-border"
-                  } ${isSavingPaid || savingOrder ? "opacity-70" : ""} ${isDragging && dragActive ? "shadow-lg scale-[1.01] ring-2 ring-primary/20 z-10" : ""}`}
-                >
-                  <button
-                    type="button"
-                    onPointerDown={(event) => handleDragStart(event, i.id)}
-                    onPointerMove={handleDragMove}
-                    onPointerUp={finishDrag}
-                    onPointerCancel={finishDrag}
-                    className="h-8 w-6 shrink-0 rounded-lg text-muted-foreground hover:bg-muted active:bg-muted flex items-center justify-center cursor-grab active:cursor-grabbing"
-                    style={{ touchAction: "none" }}
-                    aria-label={`Hold and drag ${i.name} to reorder`}
-                    disabled={savingOrder}
-                  >
-                    <GripVertical className="h-4 w-4" />
-                  </button>
-
-                  <Checkbox
-                    checked={!!i.is_paid}
-                    onCheckedChange={() => togglePaid(i)}
-                    disabled={isSavingPaid || savingOrder || !!draggingId}
-                    className="h-5 w-5 rounded-md shrink-0"
-                    aria-label={i.is_paid ? `Mark ${i.name} as unpaid` : `Mark ${i.name} as paid`}
-                  />
-
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-1.5 leading-tight">
-                      <p className="text-sm font-medium truncate">{i.name}</p>
-                      {i.repeat_every_cycle && <Repeat className="w-3 h-3 text-emerald-500 shrink-0" />}
-                      {i.is_paid && <Badge className="h-5 px-1.5 text-[10px] bg-emerald-100 text-emerald-700 hover:bg-emerald-100">Paid</Badge>}
-                    </div>
-                    <p className="text-[11px] leading-tight text-muted-foreground mt-0.5">{i.category}{stripPaidStatusFromNote(i.note) ? ` · ${stripPaidStatusFromNote(i.note)}` : ""}</p>
-                  </div>
-                  <p className={`text-sm font-semibold shrink-0 ml-1 ${i.is_paid ? "text-emerald-600" : "text-amber-600"}`}>⃁ {i.amount?.toFixed(2)}</p>
-                  <div className="flex gap-0.5 shrink-0">
-                    <button className="p-1.5 rounded-lg hover:bg-muted" onClick={() => { setEditing(i); setSheetOpen(true); }} disabled={savingOrder || !!draggingId}>
-                      <Pencil className="w-3.5 h-3.5 text-muted-foreground" />
-                    </button>
-                    <button className="p-1.5 rounded-lg hover:bg-muted" onClick={() => setDeleteId(i.id)} disabled={savingOrder || !!draggingId}>
-                      <Trash2 className="w-3.5 h-3.5 text-destructive" />
-                    </button>
+            <section className="overflow-hidden rounded-[1.75rem] border border-slate-200/80 bg-white/90 p-4 shadow-[0_20px_60px_rgba(15,23,42,0.08)] backdrop-blur">
+              <div className="flex items-center gap-4">
+                <div className="flex h-20 w-20 shrink-0 items-center justify-center rounded-full bg-emerald-50 shadow-inner">
+                  <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-emerald-500 text-white shadow-[0_14px_30px_rgba(16,185,129,0.28)]">
+                    <Wallet className="h-6 w-6" />
                   </div>
                 </div>
-              );
-            })}
-          </div>
-        )}
+
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center gap-2">
+                    <p className="text-sm font-bold text-slate-900">Total Fixed</p>
+                    {cycle.status !== "active" && <Badge variant="secondary" className="bg-amber-100 text-amber-700 hover:bg-amber-100">Closed</Badge>}
+                  </div>
+                  <p className="mt-1 text-2xl font-bold tracking-tight text-emerald-700">{formatMoney(total)}</p>
+                  <p className="mt-1.5 line-clamp-2 text-xs leading-5 text-slate-500">
+                    Track commitments and mark them paid so you never miss one due.
+                  </p>
+                  {canReorder && (
+                    <p className="mt-1 text-[11px] font-medium text-slate-400">
+                      Hold the grip icon to custom sort. {savingOrder ? "Saving order..." : ""}
+                    </p>
+                  )}
+                </div>
+
+                <div className="w-[112px] shrink-0 overflow-hidden rounded-2xl border border-slate-100 bg-slate-50/80 text-xs font-semibold">
+                  <div className="flex items-center justify-between gap-2 border-b border-slate-100 bg-emerald-50 px-3 py-2 text-emerald-700">
+                    <span>Paid:</span>
+                    <span>{formatMoney(paidTotal)}</span>
+                  </div>
+                  <div className="flex items-center justify-between gap-2 bg-orange-50 px-3 py-2 text-orange-600">
+                    <span>Due:</span>
+                    <span>{formatMoney(dueTotal)}</span>
+                  </div>
+                </div>
+              </div>
+            </section>
+          )}
+
+          {!cycle && !loading && (
+            <p className="rounded-3xl border border-slate-200 bg-white p-6 text-center text-sm text-slate-500 shadow-sm">
+              No salary cycle selected. Create one first from the Dashboard or open one from Salary Cycles.
+            </p>
+          )}
+
+          {cycle && (
+            <div className="flex items-center gap-2">
+              <div className="grid min-w-0 flex-1 grid-cols-3 gap-2">
+                {filters.map((filter) => {
+                  const active = statusFilter === filter.key;
+                  return (
+                    <button
+                      key={filter.key}
+                      type="button"
+                      onClick={() => setStatusFilter(filter.key)}
+                      aria-pressed={active}
+                      className={`h-11 rounded-xl border px-2 text-xs font-semibold transition-all ${
+                        active
+                          ? "border-emerald-100 bg-emerald-50 text-emerald-700 shadow-sm"
+                          : "border-slate-100 bg-white/80 text-slate-500 shadow-sm hover:bg-slate-50"
+                      }`}
+                    >
+                      <span className="inline-flex items-center justify-center gap-1.5">
+                        {filter.key !== "all" && <span className={`h-2 w-2 rounded-full ${filter.dot}`} />}
+                        {filter.label} ({filter.count})
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+              <button
+                type="button"
+                className="h-11 shrink-0 rounded-xl border border-slate-200 bg-white px-3 text-xs font-semibold text-slate-600 shadow-sm"
+              >
+                <span className="inline-flex items-center gap-1.5">
+                  This Month <ChevronDown className="h-3.5 w-3.5" />
+                </span>
+              </button>
+            </div>
+          )}
+
+          {loading ? (
+            <div className="space-y-3 py-2">
+              {[1, 2, 3, 4].map((key) => (
+                <div key={key} className="h-20 animate-pulse rounded-[1.5rem] border border-slate-100 bg-white/80 shadow-sm" />
+              ))}
+            </div>
+          ) : loadError ? (
+            <div className="rounded-[1.5rem] border border-red-100 bg-red-50 p-5 text-center shadow-sm">
+              <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-red-100">
+                <AlertTriangle className="h-5 w-5 text-red-600" />
+              </div>
+              <p className="mt-3 text-sm font-bold text-red-800">Fixed Spending could not load.</p>
+              <p className="mt-1 break-words text-xs leading-5 text-red-600">{loadError}</p>
+              <Button type="button" size="sm" variant="outline" className="mt-4 rounded-xl gap-1.5" onClick={load}>
+                <RefreshCw className="h-3.5 w-3.5" /> Retry
+              </Button>
+            </div>
+          ) : items.length === 0 && cycle ? (
+            <div className="rounded-[1.5rem] border border-dashed border-slate-200 bg-white/70 p-8 text-center shadow-sm">
+              <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-emerald-50 text-emerald-600">
+                <ReceiptText className="h-5 w-5" />
+              </div>
+              <p className="mt-3 text-sm font-semibold text-slate-700">No fixed spending yet.</p>
+              <p className="mt-1 text-xs leading-5 text-slate-500">Tap Add to record commitments like rent, loans, utilities, or family support.</p>
+            </div>
+          ) : filteredItems.length === 0 && cycle ? (
+            <div className="rounded-[1.5rem] border border-slate-100 bg-white/80 p-6 text-center text-sm text-slate-500 shadow-sm">
+              No {statusFilter} fixed spending item found.
+            </div>
+          ) : (
+            <div ref={listRef} className="space-y-2.5">
+              {filteredItems.map((i) => {
+                const isSavingPaid = savingPaidIds.includes(i.id);
+                const isDragging = String(draggingId) === String(i.id);
+                const { Icon, wrap, icon } = getCategoryVisual(i);
+                const cleanNote = stripPaidStatusFromNote(i.note);
+
+                return (
+                  <div
+                    key={i.id}
+                    data-fixed-spending-id={String(i.id)}
+                    className={`group flex items-center gap-2.5 rounded-[1.35rem] border bg-white/95 px-3 py-3 shadow-[0_10px_30px_rgba(15,23,42,0.06)] transition-all ${
+                      i.is_paid ? "border-emerald-100" : "border-orange-100"
+                    } ${isSavingPaid || savingOrder ? "opacity-70" : ""} ${isDragging && dragActive ? "shadow-xl scale-[1.01] ring-2 ring-emerald-200 z-10" : ""}`}
+                  >
+                    <button
+                      type="button"
+                      onPointerDown={(event) => handleDragStart(event, i.id)}
+                      onPointerMove={handleDragMove}
+                      onPointerUp={finishDrag}
+                      onPointerCancel={finishDrag}
+                      className={`flex h-10 w-5 shrink-0 items-center justify-center rounded-lg transition-colors ${
+                        canReorder ? "cursor-grab text-slate-400 hover:bg-slate-50 active:cursor-grabbing" : "cursor-default text-slate-200"
+                      }`}
+                      style={{ touchAction: "none" }}
+                      aria-label={`Hold and drag ${i.name} to reorder`}
+                      disabled={!canReorder || savingOrder}
+                    >
+                      <GripVertical className="h-4 w-4" />
+                    </button>
+
+                    <div className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-full ${wrap}`}>
+                      <Icon className={`h-5 w-5 ${icon}`} />
+                    </div>
+
+                    <div className="min-w-0 flex-1">
+                      <div className="flex min-w-0 items-center gap-2 leading-tight">
+                        <p className="truncate text-[15px] font-bold text-slate-900">{i.name}</p>
+                        {i.repeat_every_cycle && <Repeat className="h-3.5 w-3.5 shrink-0 text-emerald-500" />}
+                        <button
+                          type="button"
+                          onClick={() => togglePaid(i)}
+                          disabled={isSavingPaid || savingOrder || !!draggingId}
+                          className={`shrink-0 rounded-lg px-2 py-1 text-[10px] font-bold transition-colors ${
+                            i.is_paid
+                              ? "bg-emerald-50 text-emerald-700 hover:bg-emerald-100"
+                              : "bg-orange-50 text-orange-700 hover:bg-orange-100"
+                          }`}
+                          aria-label={i.is_paid ? `Mark ${i.name} as due` : `Mark ${i.name} as paid`}
+                        >
+                          {i.is_paid ? "Paid" : "Due"}
+                        </button>
+                      </div>
+                      <p className="mt-1 truncate text-xs font-medium text-slate-500">
+                        {i.category}{cleanNote ? ` · ${cleanNote}` : ""}
+                      </p>
+                    </div>
+
+                    <p className={`shrink-0 text-right text-sm font-bold tabular-nums ${i.is_paid ? "text-emerald-700" : "text-orange-600"}`}>
+                      {formatMoney(i.amount)}
+                    </p>
+
+                    <button
+                      type="button"
+                      className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-slate-500 transition-colors hover:bg-slate-50"
+                      onClick={() => { setEditing(i); setSheetOpen(true); }}
+                      disabled={savingOrder || !!draggingId}
+                      aria-label={`Edit ${i.name}`}
+                    >
+                      <Pencil className="h-4 w-4" />
+                    </button>
+
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <button
+                          type="button"
+                          className="flex h-9 w-8 shrink-0 items-center justify-center rounded-xl text-slate-500 transition-colors hover:bg-slate-50"
+                          disabled={savingOrder || !!draggingId}
+                          aria-label={`More options for ${i.name}`}
+                        >
+                          <MoreVertical className="h-4 w-4" />
+                        </button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end" className="w-44 rounded-2xl">
+                        <DropdownMenuItem onClick={() => togglePaid(i)} disabled={isSavingPaid} className="gap-2">
+                          {i.is_paid ? <CircleAlert className="h-4 w-4" /> : <CheckCircle2 className="h-4 w-4" />}
+                          {i.is_paid ? "Mark as Due" : "Mark as Paid"}
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => setDeleteId(i.id)} className="gap-2 text-red-600 focus:text-red-600">
+                          <Trash2 className="h-4 w-4" /> Delete
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
       </div>
 
       <Sheet open={sheetOpen} onOpenChange={(o) => { setSheetOpen(o); if (!o) setEditing(null); }}>
-        <SheetContent side="bottom" className="rounded-t-2xl max-h-[90vh] overflow-y-auto">
+        <SheetContent side="bottom" className="rounded-t-[1.75rem] max-h-[90vh] overflow-y-auto">
           <SheetHeader><SheetTitle>{editing ? "Edit Fixed Spending" : "Add Fixed Spending"}</SheetTitle></SheetHeader>
           <div className="mt-4 pb-6">
             <FixedSpendingForm onSubmit={handleSubmit} initial={editing} loading={saving} />
