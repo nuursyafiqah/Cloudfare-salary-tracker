@@ -42,7 +42,7 @@ const toneStyles = {
 
 function Card({ icon: Icon, label, value, tone = "emerald", sub, to }) {
   const style = toneStyles[tone] || toneStyles.emerald;
-  const cardClassName = `group relative min-h-[116px] overflow-hidden rounded-[1.35rem] border border-white/80 bg-white/85 p-4 shadow-[0_14px_34px_rgba(15,23,42,0.08)] backdrop-blur transition ${
+  const cardClassName = `group relative min-h-[102px] overflow-hidden rounded-[1.2rem] border border-white/80 bg-white/85 p-3 shadow-[0_10px_28px_rgba(15,23,42,0.07)] backdrop-blur transition ${
     to
       ? "block cursor-pointer active:scale-[0.98] focus:outline-none focus:ring-2 focus:ring-indigo-300/70"
       : ""
@@ -50,18 +50,18 @@ function Card({ icon: Icon, label, value, tone = "emerald", sub, to }) {
 
   const content = (
     <>
-      <div className={`pointer-events-none absolute inset-x-0 bottom-0 h-12 bg-gradient-to-tr ${style.wave}`} />
-      <div className="pointer-events-none absolute -bottom-6 left-12 right-[-20%] h-16 rounded-[100%] border-t border-white/70 opacity-80" />
+      <div className={`pointer-events-none absolute inset-x-0 bottom-0 h-10 bg-gradient-to-tr ${style.wave}`} />
+      <div className="pointer-events-none absolute -bottom-7 left-10 right-[-20%] h-14 rounded-[100%] border-t border-white/70 opacity-80" />
       <div className="relative">
-        <div className="mb-5 flex items-center gap-3">
-          <div className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-2xl ${style.icon}`}>
-            <Icon className="h-4 w-4" />
+        <div className="mb-4 flex items-center gap-2.5">
+          <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-xl ${style.icon}`}>
+            <Icon className="h-3.5 w-3.5" />
           </div>
-          <span className="text-[13px] font-medium tracking-wide text-slate-600">{label}</span>
+          <span className="text-[12px] font-normal tracking-wide text-slate-600">{label}</span>
         </div>
-        <p className="text-[22px] font-extrabold leading-none tracking-[0.08em] text-slate-950">{value}</p>
-        {sub && <p className="mt-2 text-xs font-medium text-slate-500">{sub}</p>}
-        <div className={`mt-3 h-1 w-12 rounded-full ${style.line}`} />
+        <p className="text-[18px] font-semibold leading-none tracking-[0.04em] text-slate-900">{value}</p>
+        {sub && <p className="mt-1.5 text-[11px] font-normal text-slate-500">{sub}</p>}
+        <div className={`mt-2.5 h-0.5 w-10 rounded-full ${style.line}`} />
       </div>
     </>
   );
@@ -89,7 +89,7 @@ export default function SummaryCards({ cycle, fixedTotal, expenseTotal }) {
   const fmt = (n) => `⃁ ${n.toLocaleString("en-MY", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
   return (
-    <div className="grid grid-cols-2 gap-3">
+    <div className="grid grid-cols-2 gap-2.5">
       <Card icon={Wallet} label="Salary" value={fmt(salary)} tone="emerald" />
       <Card
         icon={Activity}
