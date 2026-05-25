@@ -220,6 +220,7 @@ export default function FixedSpending() {
   const [savingOrder, setSavingOrder] = useState(false);
   const [draggingId, setDraggingId] = useState(null);
   const [dragActive, setDragActive] = useState(false);
+  const [pressedCardId, setPressedCardId] = useState(null);
   const [savingPaidIds, setSavingPaidIds] = useState([]);
   const [statusFilter, setStatusFilter] = useState("all");
   const listRef = useRef(null);
@@ -370,6 +371,7 @@ export default function FixedSpending() {
     };
 
     setDraggingId(String(itemId));
+    setPressedCardId(String(itemId));
   };
 
   const handleDragMove = (event) => {
@@ -401,6 +403,19 @@ export default function FixedSpending() {
     });
   };
 
+  const isInteractiveCardTarget = (target) => {
+    return !!target?.closest?.("button, a, input, textarea, select, [role='button'], [role='menuitem']");
+  };
+
+  const handleCardPressStart = (event, itemId) => {
+    if (savingOrder || !canReorder || isInteractiveCardTarget(event.target)) return;
+    setPressedCardId(String(itemId));
+  };
+
+  const handleCardPressEnd = () => {
+    setPressedCardId(null);
+  };
+
   const finishDrag = async (event) => {
     const dragState = dragStateRef.current;
     if (!dragState || dragState.pointerId !== event.pointerId) return;
@@ -413,6 +428,7 @@ export default function FixedSpending() {
     dragStateRef.current = null;
     setDraggingId(null);
     setDragActive(false);
+    setPressedCardId(null);
 
     if (dragState.moved) {
       setItems(nextItems);
@@ -459,6 +475,15 @@ export default function FixedSpending() {
 
   return (
     <MobileLayout>
+      <style>{`
+        @keyframes fixedCardFloat {
+          0%, 100% { transform: translateY(-4px) scale(1.012); }
+          50% { transform: translateY(-7px) scale(1.016); }
+        }
+        .fixed-card-floating {
+          animation: fixedCardFloat 1.35s ease-in-out infinite;
+        }
+      `}</style>
       <div className="-mx-4 -mt-4 min-h-full bg-[radial-gradient(circle_at_top_left,rgba(16,185,129,0.12),transparent_32%),linear-gradient(180deg,#ffffff_0%,#f8fafc_45%,#f7f9fb_100%)] px-3 pb-4 pt-4 sm:px-4">
         <div className="space-y-3">
           <header className="flex items-start justify-between gap-3">
@@ -503,7 +528,7 @@ export default function FixedSpending() {
                   </p>
                   {canReorder && (
                     <p className="mt-0.5 text-[10px] font-normal text-slate-400">
-                      Hold the grip icon to custom sort. {savingOrder ? "Saving order..." : ""}
+                      Hold grip to sort. Card floats while holding. {savingOrder ? "Saving order..." : ""}
                     </p>
                   )}
                 </div>
@@ -598,6 +623,8 @@ export default function FixedSpending() {
               {filteredItems.map((i) => {
                 const isSavingPaid = savingPaidIds.includes(i.id);
                 const isDragging = String(draggingId) === String(i.id);
+                const isPressed = String(pressedCardId) === String(i.id);
+                const isFloating = isDragging || isPressed;
                 const { Icon, wrap, icon } = getCategoryVisual(i);
                 const cleanNote = stripPaidStatusFromNote(i.note);
 
@@ -605,9 +632,13 @@ export default function FixedSpending() {
                   <div
                     key={i.id}
                     data-fixed-spending-id={String(i.id)}
-                    className={`group flex items-center gap-1.5 rounded-[1.05rem] border bg-white/95 px-2 py-2 shadow-[0_8px_22px_rgba(15,23,42,0.055)] transition-all ${
+                    onPointerDown={(event) => handleCardPressStart(event, i.id)}
+                    onPointerUp={handleCardPressEnd}
+                    onPointerCancel={handleCardPressEnd}
+                    onPointerLeave={handleCardPressEnd}
+                    className={`group relative flex items-center gap-1.5 rounded-[1.05rem] border bg-white/95 px-2 py-2 shadow-[0_8px_22px_rgba(15,23,42,0.055)] transition-[box-shadow,border-color,opacity] duration-200 will-change-transform ${
                       i.is_paid ? "border-emerald-100" : "border-orange-100"
-                    } ${isSavingPaid || savingOrder ? "opacity-70" : ""} ${isDragging && dragActive ? "shadow-xl scale-[1.01] ring-2 ring-emerald-200 z-10" : ""}`}
+                    } ${isSavingPaid || savingOrder ? "opacity-70" : ""} ${isFloating ? "fixed-card-floating z-20 border-emerald-200 bg-white shadow-[0_18px_42px_rgba(15,118,110,0.18)] ring-1 ring-emerald-100" : ""} ${isDragging && dragActive ? "z-30 shadow-[0_22px_50px_rgba(15,118,110,0.22)] ring-2 ring-emerald-200" : ""}`}
                   >
                     <button
                       type="button"
