@@ -14,8 +14,6 @@ export default function MobileLayout({ children }) {
   const navigate = useNavigate();
 
   const goToTab = (path) => {
-    // Using a button + navigate prevents iPhone long-press link preview / selection from
-    // getting stuck and blocking the bottom tab after visiting heavy pages like Fixed.
     if (location.pathname !== path) {
       navigate(path);
     }
@@ -31,49 +29,47 @@ export default function MobileLayout({ children }) {
         WebkitTouchCallout: "none",
       }}
     >
-      <main className="h-full min-h-0 overflow-y-auto overscroll-contain pb-[calc(5.25rem+env(safe-area-inset-bottom))]">
-        <div className="mx-auto max-w-lg px-4 pt-4">
-          {children}
-        </div>
-      </main>
+      <div className="relative mx-auto flex h-[100dvh] max-w-lg flex-col overflow-hidden bg-background">
+        <main className="min-h-0 flex-1 overflow-y-auto overscroll-contain no-scrollbar">
+          <div className="px-4 pb-6 pt-4">
+            {children}
+          </div>
+        </main>
 
-      <nav
-        className="mobile-bottom-nav mobile-no-select fixed inset-x-0 bottom-0 z-[9999] border-t border-border bg-card/95 shadow-[0_-8px_24px_rgba(15,23,42,0.08)] backdrop-blur"
-        style={{
-          WebkitTouchCallout: "none",
-          WebkitTapHighlightColor: "transparent",
-          WebkitUserSelect: "none",
-          userSelect: "none",
-          touchAction: "manipulation",
-          pointerEvents: "auto",
-        }}
-        onContextMenu={(event) => event.preventDefault()}
-      >
-        <div
-          className="mx-auto flex max-w-lg justify-around px-2 pt-2"
-          style={{ paddingBottom: "calc(0.5rem + env(safe-area-inset-bottom))" }}
+        <nav
+          className="mobile-bottom-nav mobile-no-select z-50 shrink-0 border-t border-border bg-card/95 shadow-[0_-8px_24px_rgba(15,23,42,0.08)] backdrop-blur-lg"
+          style={{
+            paddingBottom: "env(safe-area-inset-bottom)",
+            WebkitTouchCallout: "none",
+            WebkitTapHighlightColor: "transparent",
+            WebkitUserSelect: "none",
+            userSelect: "none",
+            touchAction: "manipulation",
+          }}
+          onContextMenu={(event) => event.preventDefault()}
         >
-          {tabs.map(({ path, icon: Icon, label }) => {
-            const active = location.pathname === path;
-            return (
-              <button
-                key={path}
-                type="button"
-                onClick={() => goToTab(path)}
-                onTouchStart={(event) => event.currentTarget.blur()}
-                className={`mobile-tab-button flex min-w-[58px] flex-col items-center gap-0.5 rounded-xl px-2 py-1.5 transition-colors ${
-                  active ? "text-primary" : "text-muted-foreground"
-                }`}
-                aria-current={active ? "page" : undefined}
-                aria-label={`Open ${label}`}
-              >
-                <Icon className={`h-5 w-5 ${active ? "stroke-[2.5]" : ""}`} />
-                <span className="text-[10px] font-medium">{label}</span>
-              </button>
-            );
-          })}
-        </div>
-      </nav>
+          <div className="flex justify-around px-2 py-2">
+            {tabs.map(({ path, icon: Icon, label }) => {
+              const active = location.pathname === path;
+              return (
+                <button
+                  key={path}
+                  type="button"
+                  onClick={() => goToTab(path)}
+                  className={`mobile-tab-button flex min-w-[58px] flex-1 flex-col items-center gap-0.5 rounded-xl px-2 py-1.5 transition-colors ${
+                    active ? "text-primary" : "text-muted-foreground"
+                  }`}
+                  aria-current={active ? "page" : undefined}
+                  aria-label={`Open ${label}`}
+                >
+                  <Icon className={`h-5 w-5 ${active ? "stroke-[2.5]" : ""}`} />
+                  <span className="text-[10px] font-medium">{label}</span>
+                </button>
+              );
+            })}
+          </div>
+        </nav>
+      </div>
     </div>
   );
 }
