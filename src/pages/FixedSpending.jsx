@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 import { cloudflare } from "@/api/cloudflareClient";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
@@ -12,7 +12,6 @@ import {
   ChevronDown,
   CircleAlert,
   Flame,
-  GripVertical,
   HandCoins,
   Home,
   Landmark,
@@ -154,17 +153,6 @@ const prepareFixedSpendingItems = (fixedItems = []) => {
   });
 };
 
-const swapItemsById = (list, firstId, secondId) => {
-  const firstIndex = list.findIndex((item) => String(item.id) === String(firstId));
-  const secondIndex = list.findIndex((item) => String(item.id) === String(secondId));
-
-  if (firstIndex < 0 || secondIndex < 0 || firstIndex === secondIndex) return list;
-
-  const result = Array.from(list);
-  [result[firstIndex], result[secondIndex]] = [result[secondIndex], result[firstIndex]];
-  return result.map((item, index) => ({ ...item, sort_order: index }));
-};
-
 const migrateLegacyPaidStorage = async (fixedItems = []) => {
   const paidMap = readLegacyPaidStorage();
   const paidIds = Object.keys(paidMap);
@@ -223,16 +211,8 @@ export default function FixedSpending() {
   const [loadError, setLoadError] = useState("");
   const [loadWarning, setLoadWarning] = useState("");
   const [saving, setSaving] = useState(false);
-  const [savingOrder, setSavingOrder] = useState(false);
-  const [selectedSwapId, setSelectedSwapId] = useState(null);
-  const [pressedCardId, setPressedCardId] = useState(null);
   const [savingPaidIds, setSavingPaidIds] = useState([]);
   const [statusFilter, setStatusFilter] = useState("all");
-  const listRef = useRef(null);
-  const itemsRef = useRef([]);
-  const pressTimerRef = useRef(null);
-  const pressPointRef = useRef(null);
-  const ignoreNextSwapClickRef = useRef(null);
   const [sheetOpen, setSheetOpen] = useState(false);
   const [editing, setEditing] = useState(null);
   const [deleteId, setDeleteId] = useState(null);
@@ -242,13 +222,6 @@ export default function FixedSpending() {
 
   useEffect(() => { load(); }, []);
 
-  useEffect(() => {
-    itemsRef.current = items;
-  }, [items]);
-
-  useEffect(() => {
-    return () => clearSwapPressTimer();
-  }, []);
 
   useEffect(() => {
     if (params.get("add") === "1" && cycle) {
@@ -356,113 +329,6 @@ export default function FixedSpending() {
     await load();
   };
 
-  const saveCustomOrder = async (nextItems, previousItems) => {
-    setSavingOrder(true);
-
-    try {
-      const orderPayload = nextItems.map((item, index) => ({ id: item.id, sort_order: index }));
-
-      if (typeof cloudflare.entities.FixedSpending.bulkUpdate === "function") {
-        await cloudflare.entities.FixedSpending.bulkUpdate(orderPayload);
-      } else {
-        await Promise.all(
-          orderPayload.map((item) =>
-            cloudflare.entities.FixedSpending.update(item.id, { sort_order: item.sort_order })
-          )
-        );
-      }
-
-      writeFixedSpendingCache(cycle, nextItems);
-    } catch (error) {
-      console.error("Failed to save fixed spending custom order", error);
-      setItems(previousItems);
-      itemsRef.current = previousItems;
-      alert("Custom sort could not be saved. Please check your connection and try again.");
-    } finally {
-      setSavingOrder(false);
-    }
-  };
-
-  const isInteractiveCardTarget = (target) => {
-    return !!target?.closest?.("button, a, input, textarea, select, [role='button'], [role='menuitem']");
-  };
-
-  const clearSwapPressTimer = () => {
-    if (pressTimerRef.current) {
-      window.clearTimeout(pressTimerRef.current);
-      pressTimerRef.current = null;
-    }
-  };
-
-  const handleCardPressStart = (event, itemId) => {
-    if (savingOrder || !canSwap || statusFilter !== "all" || isInteractiveCardTarget(event.target)) return;
-    if (event.pointerType === "mouse" && event.button !== 0) return;
-
-    clearSwapPressTimer();
-    const itemIdText = String(itemId);
-    pressPointRef.current = { x: event.clientX, y: event.clientY };
-    setPressedCardId(itemIdText);
-
-    pressTimerRef.current = window.setTimeout(() => {
-      setSelectedSwapId(itemIdText);
-      setPressedCardId(null);
-      ignoreNextSwapClickRef.current = itemIdText;
-      pressTimerRef.current = null;
-
-      if (typeof navigator !== "undefined" && typeof navigator.vibrate === "function") {
-        navigator.vibrate(12);
-      }
-    }, 320);
-  };
-
-  const handleCardPressMove = (event) => {
-    if (!pressTimerRef.current || !pressPointRef.current) return;
-
-    const distance = Math.hypot(event.clientX - pressPointRef.current.x, event.clientY - pressPointRef.current.y);
-    if (distance > 10) {
-      clearSwapPressTimer();
-      pressPointRef.current = null;
-      setPressedCardId(null);
-    }
-  };
-
-  const handleCardPressEnd = () => {
-    clearSwapPressTimer();
-    pressPointRef.current = null;
-    setPressedCardId(null);
-  };
-
-  const handleCardSwapClick = async (event, itemId) => {
-    if (!selectedSwapId || savingOrder || isInteractiveCardTarget(event.target)) return;
-
-    event.preventDefault();
-    event.stopPropagation();
-
-    const targetId = String(itemId);
-
-    if (ignoreNextSwapClickRef.current === targetId) {
-      ignoreNextSwapClickRef.current = null;
-      return;
-    }
-
-    if (selectedSwapId === targetId) {
-      setSelectedSwapId(null);
-      return;
-    }
-
-    const previousItems = itemsRef.current;
-    const nextItems = swapItemsById(previousItems, selectedSwapId, targetId);
-
-    setSelectedSwapId(null);
-    setPressedCardId(null);
-
-    if (nextItems === previousItems) return;
-
-    setItems(nextItems);
-    itemsRef.current = nextItems;
-    await saveCustomOrder(nextItems, previousItems);
-  };
-
   const togglePaid = async (item) => {
     const nextPaid = !item.is_paid;
 
@@ -491,8 +357,6 @@ export default function FixedSpending() {
   const paidTotal = paidItems.reduce((s, i) => s + toAmount(i.amount), 0);
   const dueTotal = total - paidTotal;
   const filteredItems = statusFilter === "paid" ? paidItems : statusFilter === "due" ? dueItems : items;
-  const canSwap = statusFilter === "all" && items.length > 1;
-  const selectedSwapItem = selectedSwapId ? items.find((item) => String(item.id) === String(selectedSwapId)) : null;
 
   const filters = [
     { key: "all", label: "All", count: items.length, dot: "bg-emerald-500" },
@@ -502,15 +366,6 @@ export default function FixedSpending() {
 
   return (
     <MobileLayout>
-      <style>{`
-        @keyframes fixedCardFloat {
-          0%, 100% { transform: translateY(-4px) scale(1.012); }
-          50% { transform: translateY(-7px) scale(1.016); }
-        }
-        .fixed-card-floating {
-          animation: fixedCardFloat 1.35s ease-in-out infinite;
-        }
-      `}</style>
       <div className="-mx-4 -mt-4 min-h-full bg-[radial-gradient(circle_at_top_left,rgba(16,185,129,0.12),transparent_32%),linear-gradient(180deg,#ffffff_0%,#f8fafc_45%,#f7f9fb_100%)] px-3 pb-4 pt-4 sm:px-4">
         <div className="space-y-3">
           <header className="flex items-start justify-between gap-3">
@@ -553,11 +408,6 @@ export default function FixedSpending() {
                   <p className="mt-1 line-clamp-2 text-[11px] leading-4 text-slate-500">
                     Track commitments and mark them paid so you never miss one due.
                   </p>
-                  {canSwap && (
-                    <p className="mt-0.5 text-[10px] font-normal text-slate-400">
-                      Hold any card, then tap another card to swap. {savingOrder ? "Saving swap..." : ""}
-                    </p>
-                  )}
                 </div>
 
                 <div className="w-[96px] shrink-0 overflow-hidden rounded-xl border border-slate-100 bg-slate-50/80 text-[10px] font-medium">
@@ -589,7 +439,7 @@ export default function FixedSpending() {
                     <button
                       key={filter.key}
                       type="button"
-                      onClick={() => { setSelectedSwapId(null); setStatusFilter(filter.key); }}
+                      onClick={() => setStatusFilter(filter.key)}
                       aria-pressed={active}
                       className={`h-9 rounded-xl border px-1.5 text-[11px] font-medium transition-all ${
                         active
@@ -625,14 +475,6 @@ export default function FixedSpending() {
             </div>
           )}
 
-          {selectedSwapItem && (
-            <div className="flex items-center justify-between gap-2 rounded-2xl border border-emerald-100 bg-emerald-50/90 px-3 py-2 text-[11px] text-emerald-800 shadow-sm">
-              <span className="min-w-0 truncate">Swap mode: tap another card to swap with {selectedSwapItem.name}</span>
-              <button type="button" className="shrink-0 rounded-full bg-white/80 px-2 py-1 text-[10px] font-medium text-emerald-700" onClick={() => setSelectedSwapId(null)}>
-                Cancel
-              </button>
-            </div>
-          )}
 
           {loading ? (
             <div className="space-y-2 py-1">
@@ -664,13 +506,9 @@ export default function FixedSpending() {
               No {statusFilter} fixed spending item found.
             </div>
           ) : (
-            <div ref={listRef} className="space-y-2">
+            <div className="space-y-2">
               {filteredItems.map((i) => {
                 const isSavingPaid = savingPaidIds.includes(i.id);
-                const isSelectedSwap = String(selectedSwapId) === String(i.id);
-                const isPressed = String(pressedCardId) === String(i.id);
-                const isSwapCandidate = !!selectedSwapId && !isSelectedSwap;
-                const isFloating = isSelectedSwap || isPressed;
                 const { Icon, wrap, icon } = getCategoryVisual(i);
                 const cleanNote = stripPaidStatusFromNote(i.note);
 
@@ -678,25 +516,10 @@ export default function FixedSpending() {
                   <div
                     key={i.id}
                     data-fixed-spending-id={String(i.id)}
-                    onPointerDown={(event) => handleCardPressStart(event, i.id)}
-                    onPointerMove={handleCardPressMove}
-                    onPointerUp={handleCardPressEnd}
-                    onPointerCancel={handleCardPressEnd}
-                    onPointerLeave={handleCardPressEnd}
-                    onClick={(event) => handleCardSwapClick(event, i.id)}
-                    className={`group relative flex select-none items-center gap-1.5 rounded-[1.05rem] border bg-white/95 px-2 py-2 shadow-[0_8px_22px_rgba(15,23,42,0.055)] transition-[box-shadow,border-color,opacity,transform] duration-200 will-change-transform ${
+                    className={`group relative flex items-center gap-2 rounded-[1.05rem] border bg-white/95 px-2.5 py-2 shadow-[0_8px_22px_rgba(15,23,42,0.055)] transition-[box-shadow,border-color,opacity] duration-200 ${
                       i.is_paid ? "border-emerald-100" : "border-orange-100"
-                    } ${isSavingPaid || savingOrder ? "opacity-70" : ""} ${isFloating ? "fixed-card-floating z-20 border-emerald-200 bg-white shadow-[0_18px_42px_rgba(15,118,110,0.18)] ring-1 ring-emerald-100" : ""} ${isSwapCandidate ? "cursor-pointer hover:border-emerald-200 hover:shadow-[0_12px_30px_rgba(15,118,110,0.12)] active:scale-[0.99]" : ""}`}
+                    } ${isSavingPaid ? "opacity-70" : ""}`}
                   >
-                    <div
-                      className={`flex h-9 w-4 shrink-0 items-center justify-center rounded-lg transition-colors ${
-                        canSwap ? "text-slate-400" : "text-slate-200"
-                      }`}
-                      aria-hidden="true"
-                    >
-                      <GripVertical className="h-3.5 w-3.5" />
-                    </div>
-
                     <div className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full ${wrap}`}>
                       <Icon className={`h-4 w-4 ${icon}`} />
                     </div>
@@ -708,7 +531,7 @@ export default function FixedSpending() {
                         <button
                           type="button"
                           onClick={() => togglePaid(i)}
-                          disabled={isSavingPaid || savingOrder || !!selectedSwapId}
+                          disabled={isSavingPaid}
                           className={`shrink-0 rounded-md px-1.5 py-0.5 text-[9px] font-medium transition-colors ${
                             i.is_paid
                               ? "bg-emerald-50 text-emerald-700 hover:bg-emerald-100"
@@ -734,7 +557,6 @@ export default function FixedSpending() {
                           type="button"
                           className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg text-slate-500 transition-colors hover:bg-slate-50"
                           onClick={() => { setEditing(i); setSheetOpen(true); }}
-                          disabled={savingOrder || !!selectedSwapId}
                           aria-label={`Edit ${i.name}`}
                         >
                           <Pencil className="h-3.5 w-3.5" />
@@ -745,7 +567,6 @@ export default function FixedSpending() {
                         <button
                           type="button"
                           className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg text-slate-500 transition-colors hover:bg-slate-50"
-                          disabled={savingOrder || !!selectedSwapId}
                           aria-label={`More options for ${i.name}`}
                         >
                           <MoreVertical className="h-3.5 w-3.5" />
