@@ -1,15 +1,8 @@
-name = 'salary-tracker'
-main = "worker/index.js"
+name = "cloudfare-salary-tracker"
 compatibility_date = "2026-05-23"
-
-[assets]
-directory = "./dist"
-binding = "ASSETS"
-not_found_handling = "single-page-application"
-run_worker_first = ["/api/*"]
+pages_build_output_dir = "./dist"
 
 [[d1_databases]]
 binding = "DB"
 database_name = "salary-cycle-tracker-db"
 database_id = "b926b62a-5cf2-4061-a577-415c1c859b3a"
-migrations_dir = "migrations"
