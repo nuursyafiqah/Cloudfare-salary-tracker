@@ -4,9 +4,49 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Salary Cycle Tracker</title>
+    <style>
+      html,
+      body,
+      #root {
+        min-height: 100%;
+        margin: 0;
+      }
+
+      #root:empty::before {
+        content: "Loading Salary Tracker...";
+        min-height: 100dvh;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+        color: #64748b;
+        background: #f8fafc;
+      }
+    </style>
   </head>
   <body>
     <div id="root"></div>
+    <script>
+      window.addEventListener(
+        "error",
+        function (event) {
+          var target = event.target;
+          if (!target || target.tagName !== "SCRIPT") return;
+
+          var root = document.getElementById("root");
+          if (!root || root.children.length > 0) return;
+
+          root.innerHTML =
+            '<div style="min-height:100dvh;display:flex;align-items:center;justify-content:center;background:#f8fafc;padding:16px;font-family:ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,Segoe UI,sans-serif;color:#0f172a;text-align:center;">' +
+            '<div style="max-width:360px;border:1px solid #e2e8f0;background:white;border-radius:20px;padding:22px;box-shadow:0 10px 30px rgba(15,23,42,.08);">' +
+            '<div style="font-size:18px;font-weight:700;margin-bottom:8px;">App did not load</div>' +
+            '<div style="font-size:14px;color:#64748b;line-height:1.45;">Please refresh once. The previous cached file may still be open in this browser.</div>' +
+            '<button onclick="window.location.reload()" style="margin-top:16px;border:0;border-radius:14px;background:#15803d;color:white;padding:12px 18px;font-weight:700;">Refresh</button>' +
+            "</div></div>";
+        },
+        true
+      );
+    </script>
     <script type="module" src="/src/main.jsx"></script>
   </body>
 </html>

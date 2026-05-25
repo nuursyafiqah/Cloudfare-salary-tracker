@@ -9,10 +9,12 @@ import FixedSpending from "./pages/FixedSpending";
 import SalaryCycles from "./pages/SalaryCycles";
 import CycleDetail from "./pages/CycleDetail";
 import SettingsPage from "./pages/SettingsPage";
+import AppErrorBoundary from "./components/AppErrorBoundary";
 
 function App() {
   return (
-    <QueryClientProvider client={queryClientInstance}>
+    <AppErrorBoundary>
+      <QueryClientProvider client={queryClientInstance}>
       <Router>
         <Routes>
           {/* Public app pages: anyone with the link can open and edit without login. */}
@@ -33,7 +35,8 @@ function App() {
         </Routes>
       </Router>
       <Toaster />
-    </QueryClientProvider>
+      </QueryClientProvider>
+    </AppErrorBoundary>
   );
 }
 
