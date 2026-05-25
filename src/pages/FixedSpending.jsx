@@ -3,7 +3,7 @@ import { cloudflare } from "@/api/cloudflareClient";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
-import { Plus, Pencil, Trash2, Repeat, GripVertical } from "lucide-react";
+import { AlertTriangle, Plus, Pencil, RefreshCw, Trash2, Repeat, GripVertical } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
 import { formatDisplayDate } from "@/utils/cycleFilters";
@@ -148,6 +148,7 @@ export default function FixedSpending() {
   const [cycle, setCycle] = useState(null);
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState("");
   const [saving, setSaving] = useState(false);
   const [savingOrder, setSavingOrder] = useState(false);
   const [draggingId, setDraggingId] = useState(null);
@@ -176,28 +177,55 @@ export default function FixedSpending() {
     }
   }, [cycle, selectedCycleId]);
 
+  const loadFixedSpendingItems = async (salaryCycleId) => {
+    try {
+      return await cloudflare.entities.FixedSpending.filter({ salary_cycle_id: salaryCycleId }, "sort_order");
+    } catch (error) {
+      // Fallback for an older Cloudflare deployment while the new sort_order migration is being applied.
+      console.warn("Could not load fixed spending by saved order. Falling back to created date.", error);
+      return cloudflare.entities.FixedSpending.filter({ salary_cycle_id: salaryCycleId }, "-created_date");
+    }
+  };
+
   const load = async () => {
     setLoading(true);
-    let selectedCycle = null;
+    setLoadError("");
 
-    if (selectedCycleId) {
-      selectedCycle = await cloudflare.entities.SalaryCycle.get(selectedCycleId);
-    } else {
-      const cycles = await cloudflare.entities.SalaryCycle.filter({ status: "active" }, "-created_date", 1);
-      selectedCycle = cycles[0] || null;
-    }
+    try {
+      let selectedCycle = null;
 
-    if (selectedCycle) {
-      setCycle(selectedCycle);
-      const f = await cloudflare.entities.FixedSpending.filter({ salary_cycle_id: selectedCycle.id }, "sort_order");
-      const migratedFixedItems = await migrateLegacyPaidStorage(f);
-      await syncMissingPaidMarkers(migratedFixedItems);
-      setItems(prepareFixedSpendingItems(migratedFixedItems));
-    } else {
-      setCycle(null);
+      if (selectedCycleId) {
+        selectedCycle = await cloudflare.entities.SalaryCycle.get(selectedCycleId);
+      } else {
+        const cycles = await cloudflare.entities.SalaryCycle.filter({ status: "active" }, "-created_date", 1);
+        selectedCycle = cycles[0] || null;
+      }
+
+      if (selectedCycle) {
+        setCycle(selectedCycle);
+        const fixedItems = await loadFixedSpendingItems(selectedCycle.id);
+        setItems(prepareFixedSpendingItems(fixedItems));
+
+        // Do legacy cleanup in the background so the page does not stay stuck on the loader.
+        migrateLegacyPaidStorage(fixedItems)
+          .then(async (migratedFixedItems) => {
+            await syncMissingPaidMarkers(migratedFixedItems);
+            setItems(prepareFixedSpendingItems(migratedFixedItems));
+          })
+          .catch((error) => {
+            console.error("Fixed spending background sync failed", error);
+          });
+      } else {
+        setCycle(null);
+        setItems([]);
+      }
+    } catch (error) {
+      console.error("Failed to load fixed spending", error);
+      setLoadError(error?.message || "Fixed Spending could not be loaded. Please try again.");
       setItems([]);
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   };
 
   const handleSubmit = async (data) => {
@@ -394,6 +422,19 @@ export default function FixedSpending() {
 
         {loading ? (
           <div className="flex justify-center py-12"><div className="w-6 h-6 border-2 border-primary border-t-transparent rounded-full animate-spin" /></div>
+        ) : loadError ? (
+          <div className="rounded-2xl border border-red-200 bg-red-50 p-4 text-center space-y-3">
+            <div className="mx-auto flex h-10 w-10 items-center justify-center rounded-full bg-red-100">
+              <AlertTriangle className="h-5 w-5 text-red-600" />
+            </div>
+            <div>
+              <p className="text-sm font-semibold text-red-800">Fixed Spending could not load.</p>
+              <p className="text-xs text-red-600 mt-1 break-words">{loadError}</p>
+            </div>
+            <Button type="button" size="sm" variant="outline" className="rounded-xl gap-1.5" onClick={load}>
+              <RefreshCw className="h-3.5 w-3.5" /> Retry
+            </Button>
+          </div>
         ) : items.length === 0 && cycle ? (
           <p className="text-sm text-muted-foreground text-center py-8">No fixed spending yet. Tap "Add" to record commitments like rent, loans, etc.</p>
         ) : (
