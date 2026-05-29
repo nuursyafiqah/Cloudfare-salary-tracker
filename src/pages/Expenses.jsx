@@ -523,11 +523,11 @@ export default function Expenses() {
               {activeView === "transactions" && (
                 <div className="space-y-3">
                   <div className="rounded-[1.25rem] bg-white p-3 shadow-sm ring-1 ring-slate-200/70">
-                    <p className="text-sm font-extrabold text-slate-950">All Daily Expenses</p>
-                    <p className="text-xs font-medium text-slate-500">Edit or delete any transaction here.</p>
+                    <p className="text-[13px] font-medium text-slate-900">All Daily Expenses</p>
+                    <p className="text-[11px] font-normal text-slate-500">Edit or delete any transaction here.</p>
                   </div>
                   {expenses.map((expense) => (
-                    <ExpenseRow key={expense.id} expense={expense} onEdit={handleEdit} onDelete={setDeleteId} />
+                    <ExpenseRow key={expense.id} expense={expense} onEdit={handleEdit} onDelete={setDeleteId} softText />
                   ))}
                 </div>
               )}
