@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { cloudflare } from "@/api/cloudflareClient";
 import { Button } from "@/components/ui/button";
@@ -7,48 +7,112 @@ import MobileLayout from "../components/MobileLayout";
 import SummaryCards from "../components/SummaryCards";
 import { filterExpensesForCycle, formatDisplayDate, parseDateOnly } from "@/utils/cycleFilters";
 
+const DASHBOARD_CACHE_KEY = "salary-cycle-dashboard-cache-v1";
+
+function normalizeDashboardPayload(payload) {
+  return {
+    cycle: payload?.cycle || null,
+    fixed: Array.isArray(payload?.fixed) ? payload.fixed : [],
+    expenses: Array.isArray(payload?.expenses) ? payload.expenses : [],
+  };
+}
+
+function readDashboardCache() {
+  if (typeof window === "undefined") return null;
+
+  try {
+    const raw = window.localStorage.getItem(DASHBOARD_CACHE_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    return parsed?.data || null;
+  } catch {
+    return null;
+  }
+}
+
+function saveDashboardCache(data) {
+  if (typeof window === "undefined") return;
+
+  try {
+    window.localStorage.setItem(
+      DASHBOARD_CACHE_KEY,
+      JSON.stringify({ savedAt: new Date().toISOString(), data })
+    );
+  } catch {
+    // Cache is only a speed/fallback helper. Ignore storage errors.
+  }
+}
+
 export default function Dashboard() {
   const navigate = useNavigate();
   const [cycle, setCycle] = useState(null);
   const [fixed, setFixed] = useState([]);
   const [expenses, setExpenses] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [fromCache, setFromCache] = useState(false);
+  const [syncNotice, setSyncNotice] = useState("");
   const [error, setError] = useState("");
 
-  useEffect(() => {
-    (async () => {
-      try {
-        setError("");
-        const cycles = await cloudflare.entities.SalaryCycle.filter({ status: "active" }, "-start_date", 1);
-        if (cycles.length > 0) {
-          const c = cycles[0];
-          setCycle(c);
-          const [f, e] = await Promise.all([
-            cloudflare.entities.FixedSpending.filter({ salary_cycle_id: c.id }),
-            cloudflare.entities.Expense.filter({ salary_cycle_id: c.id }),
-          ]);
-          setFixed(f);
-          setExpenses(filterExpensesForCycle(e, c));
+  const applyDashboardData = useCallback((payload, cached = false) => {
+    const data = normalizeDashboardPayload(payload);
+    setCycle(data.cycle);
+    setFixed(data.cycle ? data.fixed : []);
+    setExpenses(data.cycle ? filterExpensesForCycle(data.expenses, data.cycle) : []);
+    setFromCache(cached);
+  }, []);
+
+  const loadDashboard = useCallback(
+    async ({ useCache = true } = {}) => {
+      let cachedApplied = false;
+      setError("");
+      setSyncNotice("");
+
+      if (useCache) {
+        const cached = readDashboardCache();
+        if (cached) {
+          applyDashboardData(cached, true);
+          cachedApplied = true;
+          setLoading(false);
         }
+      }
+
+      if (!cachedApplied) setLoading(true);
+
+      try {
+        const latest = await cloudflare.dashboard.get();
+        applyDashboardData(latest, false);
+        saveDashboardCache(latest);
       } catch (err) {
         console.error("Failed to load dashboard", err);
-        setError(err?.message || "Dashboard failed to load.");
+        if (cachedApplied) {
+          setSyncNotice("Showing saved dashboard. Cloudflare is slow right now; tap Refresh to try again.");
+        } else {
+          setError(err?.message || "Dashboard failed to load.");
+        }
       } finally {
         setLoading(false);
       }
-    })();
-  }, []);
+    },
+    [applyDashboardData]
+  );
+
+  useEffect(() => {
+    loadDashboard();
+  }, [loadDashboard]);
 
   const fixedTotal = fixed.reduce((s, i) => s + (i.amount || 0), 0);
   const expenseTotal = expenses.reduce((s, i) => s + (i.amount || 0), 0);
   const fmt = formatDisplayDate;
-  const recentExpenses = [...expenses].sort((a, b) => (parseDateOnly(b.date) || 0) - (parseDateOnly(a.date) || 0)).slice(0, 5);
+  const recentExpenses = [...expenses]
+    .sort((a, b) => (parseDateOnly(b.date) || 0) - (parseDateOnly(a.date) || 0))
+    .slice(0, 5);
 
   if (loading) {
     return (
       <MobileLayout>
-        <div className="flex h-60 items-center justify-center">
+        <div className="flex h-60 flex-col items-center justify-center gap-3 text-center">
           <div className="h-6 w-6 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+          <p className="text-sm text-muted-foreground">Loading dashboard…</p>
         </div>
       </MobileLayout>
     );
@@ -65,7 +129,7 @@ export default function Dashboard() {
             <h1 className="text-lg font-semibold">Dashboard cannot load</h1>
             <p className="mt-2 break-words text-sm text-muted-foreground">{error}</p>
           </div>
-          <Button className="h-11 rounded-xl" onClick={() => window.location.reload()}>
+          <Button className="h-11 rounded-xl" onClick={() => loadDashboard({ useCache: false })}>
             Refresh
           </Button>
         </div>
@@ -94,6 +158,12 @@ export default function Dashboard() {
               <CalendarDays className="h-4 w-4" />
             </button>
           </div>
+
+          {(fromCache || syncNotice) && (
+            <div className="rounded-2xl border border-amber-200 bg-amber-50/90 px-3 py-2 text-[12px] leading-5 text-amber-800 shadow-sm">
+              {syncNotice || "Showing saved dashboard while Cloudflare refreshes in the background."}
+            </div>
+          )}
 
           {!cycle ? (
             <div className="rounded-[1.35rem] border border-white/80 bg-white/85 p-5 text-center shadow-[0_14px_36px_rgba(15,23,42,0.07)] backdrop-blur">

@@ -62,14 +62,20 @@ async function ensureTableColumn(env, tableName, columnName, definition) {
 async function ensureSchema(env) {
   if (!schemaReadyPromise) {
     schemaReadyPromise = (async () => {
-      for (const statement of SCHEMA_STATEMENTS) {
-        await env.DB.prepare(statement).run();
+      const existingSalaryTable = await env.DB
+        .prepare("SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'salary_cycles'")
+        .first();
+
+      if (!existingSalaryTable) {
+        for (const statement of SCHEMA_STATEMENTS) {
+          await env.DB.prepare(statement).run();
+        }
+      } else {
+        // Tables already exist. Avoid repeating every CREATE TABLE / CREATE INDEX on each cold start.
+        await ensureTableColumn(env, "fixed_spending", "is_paid", "INTEGER NOT NULL DEFAULT 0");
+        await ensureTableColumn(env, "fixed_spending", "sort_order", "INTEGER NOT NULL DEFAULT 0");
       }
 
-      // Keep startup fast on Cloudflare Pages/Workers cold starts.
-      // Existing rows receive DEFAULT 0 when the column is added, so no full-table UPDATE is needed here.
-      await ensureTableColumn(env, "fixed_spending", "is_paid", "INTEGER NOT NULL DEFAULT 0");
-      await ensureTableColumn(env, "fixed_spending", "sort_order", "INTEGER NOT NULL DEFAULT 0");
       await env.DB.prepare("CREATE INDEX IF NOT EXISTS idx_fixed_spending_sort_order ON fixed_spending(sort_order)").run();
     })().catch((err) => {
       schemaReadyPromise = null;
@@ -346,6 +352,38 @@ async function deleteRecord(env, config, id) {
   return json({ success: true, id });
 }
 
+async function getDashboard(env) {
+  const cycleConfig = ENTITY_CONFIG["salary-cycles"];
+  const fixedConfig = ENTITY_CONFIG["fixed-spending"];
+  const expenseConfig = ENTITY_CONFIG.expenses;
+
+  const cycle = await env.DB
+    .prepare("SELECT * FROM salary_cycles WHERE status = ? ORDER BY start_date DESC LIMIT 1")
+    .bind("active")
+    .first();
+
+  if (!cycle) {
+    return json({ cycle: null, fixed: [], expenses: [] });
+  }
+
+  const [fixedResult, expenseResult] = await Promise.all([
+    env.DB
+      .prepare("SELECT * FROM fixed_spending WHERE salary_cycle_id = ? ORDER BY sort_order ASC, created_date DESC")
+      .bind(cycle.id)
+      .all(),
+    env.DB
+      .prepare("SELECT * FROM expenses WHERE salary_cycle_id = ? ORDER BY date DESC, created_date DESC")
+      .bind(cycle.id)
+      .all(),
+  ]);
+
+  return json({
+    cycle: normalizeBooleanFields(cycle, cycleConfig),
+    fixed: (fixedResult.results || []).map((row) => normalizeBooleanFields(row, fixedConfig)),
+    expenses: (expenseResult.results || []).map((row) => normalizeBooleanFields(row, expenseConfig)),
+  });
+}
+
 async function handleApi(request, env) {
   if (!env.DB) {
     return error("D1 binding DB is missing. Create a D1 database and bind it as DB.", 500);
@@ -356,6 +394,10 @@ async function handleApi(request, env) {
   const url = new URL(request.url);
   if (url.pathname === "/api/health" || url.pathname === "/api") {
     return json({ ok: true, service: "salary-cycle-tracker" });
+  }
+
+  if (request.method === "GET" && url.pathname === "/api/dashboard") {
+    return getDashboard(env);
   }
 
   const { entityKey, idOrAction, extra } = parsePath(url.pathname);

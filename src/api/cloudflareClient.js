@@ -7,8 +7,9 @@ const ENTITY_ROUTES = {
   FixedSpending: "/api/fixed-spending",
 };
 
-const API_TIMEOUT_MS = 30000;
-const GET_RETRY_DELAY_MS = 900;
+const DASHBOARD_ROUTE = "/api/dashboard";
+const API_TIMEOUT_MS = 15000;
+const GET_RETRY_DELAY_MS = 700;
 
 const sleep = (ms) => new Promise((resolve) => window.setTimeout(resolve, ms));
 
@@ -24,17 +25,19 @@ function isRetryableError(error) {
 }
 
 async function apiRequestOnce(path, options = {}) {
+  const { timeoutMs = API_TIMEOUT_MS, ...fetchOptions } = options;
+  const timer = typeof window !== "undefined" ? window : globalThis;
   const controller = new AbortController();
-  const timeoutId = window.setTimeout(() => controller.abort(), API_TIMEOUT_MS);
+  const timeoutId = timer.setTimeout(() => controller.abort(), timeoutMs);
 
   let response;
   try {
     response = await fetch(path, {
-      ...options,
+      ...fetchOptions,
       signal: controller.signal,
       headers: {
         "Content-Type": "application/json",
-        ...(options.headers || {}),
+        ...(fetchOptions.headers || {}),
       },
     });
   } catch (err) {
@@ -43,7 +46,7 @@ async function apiRequestOnce(path, options = {}) {
     }
     throw err;
   } finally {
-    window.clearTimeout(timeoutId);
+    timer.clearTimeout(timeoutId);
   }
 
   const contentType = response.headers.get("content-type") || "";
@@ -60,13 +63,14 @@ async function apiRequestOnce(path, options = {}) {
 }
 
 async function apiRequest(path, options = {}) {
-  const method = String(options.method || "GET").toUpperCase();
-  const maxAttempts = method === "GET" ? 2 : 1;
+  const { maxAttempts: requestedMaxAttempts, ...requestOptions } = options;
+  const method = String(requestOptions.method || "GET").toUpperCase();
+  const maxAttempts = requestedMaxAttempts ?? (method === "GET" ? 2 : 1);
   let lastError;
 
   for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
     try {
-      return await apiRequestOnce(path, options);
+      return await apiRequestOnce(path, requestOptions);
     } catch (error) {
       lastError = error;
       if (attempt >= maxAttempts || !isRetryableError(error)) break;
@@ -152,6 +156,11 @@ export const cloudflare = {
     SalaryCycle: makeEntity("SalaryCycle"),
     Expense: makeEntity("Expense"),
     FixedSpending: makeEntity("FixedSpending"),
+  },
+  dashboard: {
+    async get() {
+      return apiRequest(DASHBOARD_ROUTE, { timeoutMs: 12000, maxAttempts: 1 });
+    },
   },
   auth: {
     async me() {
