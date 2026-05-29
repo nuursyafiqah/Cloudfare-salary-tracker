@@ -236,9 +236,19 @@ function CategoryBreakdown({ data, total, compact = false }) {
   );
 }
 
-function ExpenseRow({ expense, onEdit, onDelete, showActions = true }) {
+function ExpenseRow({ expense, onEdit, onDelete, showActions = true, softText = false }) {
   const Icon = getExpenseIcon(expense.category);
   const tone = getExpenseCategoryTone(expense.category);
+  const titleClass = softText
+    ? "truncate text-[13px] font-medium text-slate-900"
+    : "truncate text-sm font-extrabold text-slate-950";
+  const metaClass = softText
+    ? "truncate text-[10px] font-normal text-slate-500"
+    : "truncate text-[11px] font-medium text-slate-500";
+  const categoryClass = softText ? `font-medium ${tone.text}` : `font-extrabold ${tone.text}`;
+  const amountClass = softText
+    ? `shrink-0 text-[13px] font-medium ${tone.text}`
+    : `shrink-0 text-sm font-extrabold ${tone.text}`;
 
   return (
     <div className={`flex items-center gap-3 rounded-[1.25rem] border border-l-4 ${tone.border} ${tone.rowBg} p-3 shadow-sm`}>
@@ -246,12 +256,12 @@ function ExpenseRow({ expense, onEdit, onDelete, showActions = true }) {
         <Icon className="h-5 w-5" />
       </div>
       <div className="min-w-0 flex-1">
-        <p className="truncate text-sm font-extrabold text-slate-950">{expense.description || expense.category}</p>
-        <p className="truncate text-[11px] font-medium text-slate-500">
-          {fmtDate(expense.date, true)} · <span className={`font-extrabold ${tone.text}`}>{expense.category || "Uncategorized"}</span>{expense.payment_method ? ` · ${expense.payment_method}` : ""}
+        <p className={titleClass}>{expense.description || expense.category}</p>
+        <p className={metaClass}>
+          {fmtDate(expense.date, true)} · <span className={categoryClass}>{expense.category || "Uncategorized"}</span>{expense.payment_method ? ` · ${expense.payment_method}` : ""}
         </p>
       </div>
-      <p className={`shrink-0 text-sm font-extrabold ${tone.text}`}>-{fmtCurrency(expense.amount)}</p>
+      <p className={amountClass}>-{fmtCurrency(expense.amount)}</p>
       {showActions ? (
         <div className="flex shrink-0 gap-1">
           <button type="button" className="rounded-xl p-2 hover:bg-slate-100" onClick={() => onEdit(expense)} aria-label="Edit expense">
@@ -493,12 +503,12 @@ export default function Expenses() {
 
                   <div className="rounded-[1.5rem] bg-white p-4 shadow-sm ring-1 ring-slate-200/70">
                     <div className="mb-3 flex items-center justify-between">
-                      <h3 className="text-sm font-extrabold text-slate-950">Recent Transactions</h3>
-                      <button type="button" className="text-xs font-extrabold text-emerald-600" onClick={() => setActiveView("transactions")}>View all</button>
+                      <h3 className="text-[13px] font-medium text-slate-900">Recent Transactions</h3>
+                      <button type="button" className="text-[11px] font-medium text-emerald-600" onClick={() => setActiveView("transactions")}>View all</button>
                     </div>
                     <div className="space-y-2">
                       {overview.recent.map((expense) => (
-                        <ExpenseRow key={expense.id} expense={expense} onEdit={handleEdit} onDelete={setDeleteId} showActions={false} />
+                        <ExpenseRow key={expense.id} expense={expense} onEdit={handleEdit} onDelete={setDeleteId} showActions={false} softText />
                       ))}
                     </div>
                   </div>

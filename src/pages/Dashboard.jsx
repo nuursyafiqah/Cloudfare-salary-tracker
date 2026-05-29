@@ -227,8 +227,8 @@ export default function Dashboard() {
               {recentExpenses.length > 0 && (
                 <div>
                   <div className="mb-3 flex items-center justify-between">
-                    <h3 className="text-[13px] font-semibold text-slate-900">Recent Expenses</h3>
-                    <Link to="/expenses" className="text-xs font-medium text-indigo-600">View all</Link>
+                    <h3 className="text-[13px] font-medium text-slate-900">Recent Expenses</h3>
+                    <Link to="/expenses" className="text-[11px] font-medium text-indigo-600">View all</Link>
                   </div>
                   <div className="space-y-2">
                     {recentExpenses.map((e) => {
@@ -242,16 +242,16 @@ export default function Dashboard() {
                             <ReceiptText className="h-4 w-4" />
                           </div>
                           <div className="min-w-0 flex-1">
-                            <p className="truncate text-[13px] font-semibold text-slate-900">{e.description || e.category}</p>
-                            <div className="mt-1 flex min-w-0 items-center gap-1.5 text-xs text-slate-500">
+                            <p className="truncate text-[12px] font-medium text-slate-900">{e.description || e.category}</p>
+                            <div className="mt-1 flex min-w-0 items-center gap-1.5 text-[11px] text-slate-500">
                               <span className="shrink-0">{fmt(e.date)}</span>
                               <span className="text-slate-300">·</span>
-                              <span className={`truncate rounded-full px-2 py-0.5 text-[10px] font-extrabold ${tone.chipBg} ${tone.chipText}`}>
+                              <span className={`truncate rounded-full px-2 py-0.5 text-[9px] font-medium ${tone.chipBg} ${tone.chipText}`}>
                                 {e.category || "Uncategorized"}
                               </span>
                             </div>
                           </div>
-                          <p className={`shrink-0 text-[13px] font-extrabold ${tone.text}`}>-⃁ {Number(e.amount || 0).toFixed(2)}</p>
+                          <p className={`shrink-0 text-[12px] font-medium ${tone.text}`}>-⃁ {Number(e.amount || 0).toFixed(2)}</p>
                         </div>
                       );
                     })}
