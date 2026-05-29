@@ -7,6 +7,7 @@ import { ArrowLeft, Plus, ReceiptText, PiggyBank } from "lucide-react";
 import MobileLayout from "../components/MobileLayout";
 import SummaryCards from "../components/SummaryCards";
 import { filterExpensesForCycle, formatDisplayDate } from "@/utils/cycleFilters";
+import { getExpenseCategoryTone } from "@/utils/expenseCategoryColors";
 
 export default function CycleDetail() {
   const { cycleId } = useParams();
@@ -98,15 +99,20 @@ export default function CycleDetail() {
             <p className="text-xs text-muted-foreground">No expenses.</p>
           ) : (
             <div className="space-y-2">
-              {expenses.map((e) => (
-                <div key={e.id} className="bg-card rounded-xl p-3 border border-border flex justify-between">
-                  <div>
-                    <p className="text-sm font-medium">{e.description || e.category}</p>
-                    <p className="text-xs text-muted-foreground">{fmt(e.date)} · {e.category}</p>
+              {expenses.map((e) => {
+                const tone = getExpenseCategoryTone(e.category);
+                return (
+                  <div key={e.id} className={`flex justify-between rounded-xl border border-l-4 ${tone.border} ${tone.rowBg} p-3`}>
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-sm font-medium">{e.description || e.category}</p>
+                      <p className="truncate text-xs text-muted-foreground">
+                        {fmt(e.date)} · <span className={`font-semibold ${tone.text}`}>{e.category || "Uncategorized"}</span>
+                      </p>
+                    </div>
+                    <p className={`shrink-0 text-sm font-semibold ${tone.text}`}>-⃁ {Number(e.amount || 0).toFixed(2)}</p>
                   </div>
-                  <p className="text-sm font-semibold text-rose-600">-⃁ {e.amount?.toFixed(2)}</p>
-                </div>
-              ))}
+                );
+              })}
             </div>
           )}
         </div>

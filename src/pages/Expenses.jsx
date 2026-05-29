@@ -1,6 +1,7 @@
 import { useMemo, useState, useEffect } from "react";
 import { cloudflare } from "@/api/cloudflareClient";
 import { filterExpensesForCycle, formatDisplayDate, isDateInSalaryCycle } from "@/utils/cycleFilters";
+import { getExpenseCategoryHex, getExpenseCategoryTone } from "@/utils/expenseCategoryColors";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
@@ -208,15 +209,16 @@ function CategoryBreakdown({ data, total, compact = false }) {
           <div className={compact ? "space-y-2" : "mt-2 space-y-2"}>
             {visibleData.map((item) => {
               const percent = total > 0 ? (item.amount / total) * 100 : 0;
+              const tone = getExpenseCategoryTone(item.name);
               return (
-                <div key={item.name} className="flex items-center gap-3 rounded-2xl border border-slate-100 bg-slate-50/80 px-3 py-2.5">
+                <div key={item.name} className={`flex items-center gap-3 rounded-2xl border ${tone.border} ${tone.rowBg} px-3 py-2.5`}>
                   <span className="h-3 w-3 shrink-0 rounded-full" style={{ backgroundColor: item.color }} />
                   <div className="min-w-0 flex-1">
-                    <p className="truncate text-xs font-bold text-slate-800">{item.name}</p>
+                    <p className={`truncate text-xs font-bold ${tone.text}`}>{item.name}</p>
                     <p className="text-[10px] font-medium text-slate-400">{item.count} item{item.count > 1 ? "s" : ""}</p>
                   </div>
                   <div className="text-right">
-                    <p className="text-xs font-extrabold text-slate-950">{fmtCurrency(item.amount)}</p>
+                    <p className={`text-xs font-extrabold ${tone.text}`}>{fmtCurrency(item.amount)}</p>
                     <p className="text-[10px] font-semibold text-slate-400">{percent.toFixed(1)}%</p>
                   </div>
                 </div>
@@ -236,19 +238,20 @@ function CategoryBreakdown({ data, total, compact = false }) {
 
 function ExpenseRow({ expense, onEdit, onDelete, showActions = true }) {
   const Icon = getExpenseIcon(expense.category);
+  const tone = getExpenseCategoryTone(expense.category);
 
   return (
-    <div className="flex items-center gap-3 rounded-[1.25rem] border border-slate-100 bg-white p-3 shadow-sm">
-      <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-rose-50 text-rose-500">
+    <div className={`flex items-center gap-3 rounded-[1.25rem] border border-l-4 ${tone.border} ${tone.rowBg} p-3 shadow-sm`}>
+      <div className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl ${tone.iconBg} ${tone.text} ring-1 ${tone.ring}`}>
         <Icon className="h-5 w-5" />
       </div>
       <div className="min-w-0 flex-1">
         <p className="truncate text-sm font-extrabold text-slate-950">{expense.description || expense.category}</p>
         <p className="truncate text-[11px] font-medium text-slate-500">
-          {fmtDate(expense.date, true)} · {expense.category}{expense.payment_method ? ` · ${expense.payment_method}` : ""}
+          {fmtDate(expense.date, true)} · <span className={`font-extrabold ${tone.text}`}>{expense.category || "Uncategorized"}</span>{expense.payment_method ? ` · ${expense.payment_method}` : ""}
         </p>
       </div>
-      <p className="shrink-0 text-sm font-extrabold text-rose-600">-{fmtCurrency(expense.amount)}</p>
+      <p className={`shrink-0 text-sm font-extrabold ${tone.text}`}>-{fmtCurrency(expense.amount)}</p>
       {showActions ? (
         <div className="flex shrink-0 gap-1">
           <button type="button" className="rounded-xl p-2 hover:bg-slate-100" onClick={() => onEdit(expense)} aria-label="Edit expense">
@@ -259,7 +262,7 @@ function ExpenseRow({ expense, onEdit, onDelete, showActions = true }) {
           </button>
         </div>
       ) : (
-        <ChevronRight className="h-4 w-4 shrink-0 text-slate-300" />
+        <ChevronRight className={`h-4 w-4 shrink-0 ${tone.text} opacity-50`} />
       )}
     </div>
   );
@@ -369,7 +372,7 @@ export default function Expenses() {
     });
     const byCategory = Array.from(byCategoryMap.values())
       .sort((a, b) => b.amount - a.amount)
-      .map((item, index) => ({ ...item, color: CHART_COLORS[index % CHART_COLORS.length] }));
+      .map((item) => ({ ...item, color: getExpenseCategoryHex(item.name) }));
 
     return {
       total,

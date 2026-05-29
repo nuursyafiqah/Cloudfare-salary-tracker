@@ -2,10 +2,11 @@ import { useState, useEffect, useCallback } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { cloudflare } from "@/api/cloudflareClient";
 import { Button } from "@/components/ui/button";
-import { Plus, ArrowRightLeft, Info, CalendarDays } from "lucide-react";
+import { Plus, ArrowRightLeft, Info, CalendarDays, ReceiptText } from "lucide-react";
 import MobileLayout from "../components/MobileLayout";
 import SummaryCards from "../components/SummaryCards";
 import { filterExpensesForCycle, formatDisplayDate, parseDateOnly } from "@/utils/cycleFilters";
+import { getExpenseCategoryTone } from "@/utils/expenseCategoryColors";
 
 const DASHBOARD_CACHE_KEY = "salary-cycle-dashboard-cache-v1";
 
@@ -230,15 +231,30 @@ export default function Dashboard() {
                     <Link to="/expenses" className="text-xs font-medium text-indigo-600">View all</Link>
                   </div>
                   <div className="space-y-2">
-                    {recentExpenses.map((e) => (
-                      <div key={e.id} className="flex items-center justify-between rounded-2xl border border-white/80 bg-white/80 p-3 shadow-sm backdrop-blur">
-                        <div>
-                          <p className="text-[13px] font-medium text-slate-900">{e.description || e.category}</p>
-                          <p className="text-xs text-slate-500">{fmt(e.date)} · {e.category}</p>
+                    {recentExpenses.map((e) => {
+                      const tone = getExpenseCategoryTone(e.category);
+                      return (
+                        <div
+                          key={e.id}
+                          className={`flex items-center gap-3 rounded-2xl border border-l-4 ${tone.border} ${tone.rowBg} p-3 shadow-sm backdrop-blur`}
+                        >
+                          <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl ${tone.iconBg} ${tone.text} ring-1 ${tone.ring}`}>
+                            <ReceiptText className="h-4 w-4" />
+                          </div>
+                          <div className="min-w-0 flex-1">
+                            <p className="truncate text-[13px] font-semibold text-slate-900">{e.description || e.category}</p>
+                            <div className="mt-1 flex min-w-0 items-center gap-1.5 text-xs text-slate-500">
+                              <span className="shrink-0">{fmt(e.date)}</span>
+                              <span className="text-slate-300">·</span>
+                              <span className={`truncate rounded-full px-2 py-0.5 text-[10px] font-extrabold ${tone.chipBg} ${tone.chipText}`}>
+                                {e.category || "Uncategorized"}
+                              </span>
+                            </div>
+                          </div>
+                          <p className={`shrink-0 text-[13px] font-extrabold ${tone.text}`}>-⃁ {Number(e.amount || 0).toFixed(2)}</p>
                         </div>
-                        <p className="text-[13px] font-medium text-rose-600">-⃁ {e.amount?.toFixed(2)}</p>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 </div>
               )}
